@@ -1,0 +1,4 @@
+-- Add down migration script here
+
+DELETE FROM vibes;
+DELETE FROM vibe_groups;
