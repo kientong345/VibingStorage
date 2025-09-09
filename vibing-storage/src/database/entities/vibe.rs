@@ -38,6 +38,28 @@ impl Vibe {
             ", name
         ).fetch_one(pool.get_inner()).await?)
     }
+
+    pub async fn get_all(pool: &VibingPool) -> Vec<Vibe> {
+        sqlx::query_as!(Vibe,
+            "
+            SELECT vb.vibe_id AS id, vb.name AS name, vg.name AS group_name
+            FROM vibes AS vb
+            JOIN vibe_groups AS vg ON vb.vibe_group = vg.vibe_group_id
+            "
+        ).fetch_all(pool.get_inner()).await
+        .unwrap_or(Vec::new())
+    }
+
+    pub async fn count(pool: &VibingPool) -> Result<i64> {
+        Ok(sqlx::query!(
+            "
+            SELECT COUNT(*) AS vibes_count
+            FROM vibes
+            "
+        ).fetch_one(pool.get_inner()).await?
+        .vibes_count
+        .unwrap_or(-1))
+    }
 }
 
 impl VibeFull {
@@ -70,5 +92,11 @@ impl VibeFull {
         ).fetch_all(pool.get_inner()).await?;
 
         Ok(VibeFull { vibe, tracks })
+    }
+
+    // no need get_all
+
+    pub async fn count(pool: &VibingPool) -> Result<i64> {
+        Vibe::count(pool).await
     }
 }

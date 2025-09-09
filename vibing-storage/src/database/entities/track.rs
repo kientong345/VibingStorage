@@ -77,6 +77,27 @@ impl Track {
         ).fetch_one(pool.get_inner()).await?)
     }
 
+    pub async fn get_all(pool: &VibingPool) -> Vec<Track> {
+        sqlx::query_as!(Track,
+            r#"
+            SELECT track_id AS id, path, title, author, genre, duration
+            FROM tracks
+            "#
+        ).fetch_all(pool.get_inner()).await
+        .unwrap_or(Vec::new())
+    }
+
+    pub async fn get_all_with_limit(limit: i64, pool: &VibingPool) -> Vec<Track> {
+        sqlx::query_as!(Track,
+            r#"
+            SELECT track_id AS id, path, title, author, genre, duration
+            FROM tracks
+            LIMIT $1
+            "#, limit
+        ).fetch_all(pool.get_inner()).await
+        .unwrap_or(Vec::new())
+    }
+
     pub async fn apply_patch(mut self, patch: TrackPatch, pool: &VibingPool) -> Result<Track> {
         let change_path = (patch.path.is_some()) && (self.path != patch.path.clone().unwrap());
         let change_title = (patch.title.is_some()) && (self.title != patch.title);
@@ -158,6 +179,17 @@ impl Track {
         Ok(())
     }
 
+    pub async fn count(pool: &VibingPool) -> Result<i64> {
+        Ok(sqlx::query!(
+            "
+            SELECT COUNT(*) AS tracks_count
+            FROM tracks
+            "
+        ).fetch_one(pool.get_inner()).await?
+        .tracks_count
+        .unwrap_or(-1))
+    }
+
 }
 
 impl TrackFull {
@@ -198,6 +230,60 @@ impl TrackFull {
         ).fetch_all(pool.get_inner()).await?;
 
         Ok(TrackFull { track, vibes })
+    }
+
+    pub async fn get_all(pool: &VibingPool) -> Vec<TrackFull> {
+        let tracks = Track::get_all(pool).await;
+
+        let mut full_tracks = Vec::new();
+
+        for track in tracks {
+            let track_id = track.id;
+            let vibes = sqlx::query_as!(Vibe,
+                "
+                SELECT vb.vibe_id AS id, vb.name AS name, vg.name AS group_name
+                FROM tracks_with_vibes AS twv
+                JOIN tracks AS tr ON twv.track = tr.track_id
+                JOIN vibes AS vb ON twv.vibe = vb.vibe_id
+                JOIN vibe_groups AS vg ON vb.vibe_group = vg.vibe_group_id
+                WHERE twv.track = $1
+                ", track_id
+            ).fetch_all(pool.get_inner()).await
+            .unwrap_or(Vec::new());
+
+            full_tracks.push(
+                TrackFull { track, vibes }
+            );
+        }
+
+        full_tracks
+    }
+
+    pub async fn get_all_with_limit(limit: i64, pool: &VibingPool) -> Vec<TrackFull> {
+        let tracks = Track::get_all_with_limit(limit, pool).await;
+
+        let mut full_tracks = Vec::new();
+
+        for track in tracks {
+            let track_id = track.id;
+            let vibes = sqlx::query_as!(Vibe,
+                "
+                SELECT vb.vibe_id AS id, vb.name AS name, vg.name AS group_name
+                FROM tracks_with_vibes AS twv
+                JOIN tracks AS tr ON twv.track = tr.track_id
+                JOIN vibes AS vb ON twv.vibe = vb.vibe_id
+                JOIN vibe_groups AS vg ON vb.vibe_group = vg.vibe_group_id
+                WHERE twv.track = $1
+                ", track_id
+            ).fetch_all(pool.get_inner()).await
+            .unwrap_or(Vec::new());
+
+            full_tracks.push(
+                TrackFull { track, vibes }
+            );
+        }
+
+        full_tracks
     }
 
     pub async fn apply_patch(mut self, patch: FullTrackPatch, pool: &VibingPool) -> Result<TrackFull> {
@@ -259,6 +345,10 @@ impl TrackFull {
         ).execute(pool.get_inner()).await?;
 
         Ok(())
+    }
+
+    pub async fn count(pool: &VibingPool) -> Result<i64> {
+        Track::count(pool).await
     }
 }
 
