@@ -38,7 +38,7 @@ pub type GroupName = String;
 pub type VibeName = String;
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
-pub struct FullTrackPatch {
+pub struct TrackFullPatch {
     pub track: Option<TrackPatch>,
     pub add_vibes: Vec<(GroupName, VibeName)>,
     pub remove_vibes: Vec<(GroupName, VibeName)>,
@@ -178,6 +178,10 @@ impl Track {
         let change_genre = (patch.genre.is_some()) && (self.genre != patch.genre);
         let change_duration = (patch.duration.is_some()) && (self.duration != patch.duration);
 
+        let pool_guard = pool.read().await;
+        let mut tx = pool_guard.transaction().await
+            .expect("cannot get tx");
+
         if change_path {
             sqlx::query!(
                 "
@@ -185,7 +189,7 @@ impl Track {
                 SET path = $1
                 WHERE track_id = $2
                 ", patch.path.clone().unwrap(), self.id
-            ).execute(pool.read().await.get_inner()).await?;
+            ).execute(&mut *tx).await?;
 
             self.path = patch.path.unwrap();
         }
@@ -197,7 +201,7 @@ impl Track {
                 SET title = $1
                 WHERE track_id = $2
                 ", patch.title, self.id
-            ).execute(pool.read().await.get_inner()).await?;
+            ).execute(&mut *tx).await?;
 
             self.title = patch.title;
         }
@@ -209,7 +213,7 @@ impl Track {
                 SET author = $1
                 WHERE track_id = $2
                 ", patch.author, self.id
-            ).execute(pool.read().await.get_inner()).await?;
+            ).execute(&mut *tx).await?;
 
             self.author = patch.author;
         }
@@ -221,7 +225,7 @@ impl Track {
                 SET genre = $1
                 WHERE track_id = $2
                 ", patch.genre, self.id
-            ).execute(pool.read().await.get_inner()).await?;
+            ).execute(&mut *tx).await?;
 
             self.genre = patch.genre;
         }
@@ -233,10 +237,12 @@ impl Track {
                 SET duration = $1
                 WHERE track_id = $2
                 ", patch.duration, self.id
-            ).execute(pool.read().await.get_inner()).await?;
+            ).execute(&mut *tx).await?;
 
             self.duration = patch.duration;
         }
+
+        tx.commit().await.expect("cannot commit tx");
         
         Ok(self)
     }
@@ -404,7 +410,7 @@ impl TrackFull {
         Ok(full_tracks)
     }
 
-    pub async fn apply_patch(mut self, patch: FullTrackPatch, pool: Arc<RwLock<VibingPool>>) -> Result<TrackFull> {
+    pub async fn apply_patch(mut self, patch: TrackFullPatch, pool: Arc<RwLock<VibingPool>>) -> Result<TrackFull> {
         let track = if patch.track.is_some() {
             Track::apply_patch(self.track, patch.track.unwrap(), pool.clone()).await?
         } else {
@@ -412,6 +418,10 @@ impl TrackFull {
         };
 
         self.track = track;
+
+        let pool_guard = pool.read().await;
+        let mut tx = pool_guard.transaction().await
+            .expect("cannot get tx");
 
         for remove_vibe in patch.remove_vibes {
             sqlx::query_as!(Vibe,
@@ -423,7 +433,7 @@ impl TrackFull {
                     WHERE name = $1
                 )
                 ", remove_vibe.1
-            ).execute(pool.read().await.get_inner()).await?;
+            ).execute(&mut *tx).await?;
         
             self.vibes = self.vibes
                 .into_iter()
@@ -442,7 +452,7 @@ impl TrackFull {
                 ))
                 RETURNING vibe
                 ", self.track.id, add_vibe.1
-            ).fetch_one(pool.read().await.get_inner()).await?
+            ).fetch_one(&mut *tx).await?
             .vibe;
 
             self.vibes.push(Vibe { id, name: add_vibe.1, group_name: add_vibe.0 });
@@ -457,7 +467,7 @@ impl TrackFull {
                     total_rating = total_rating + $1
                 WHERE track_id = $2
                 "#, vote as i64, self.track.id
-            ).execute(pool.read().await.get_inner()).await?;
+            ).execute(&mut *tx).await?;
 
             self.vote_count += 1;
             self.total_rating += vote as i64;
@@ -470,10 +480,12 @@ impl TrackFull {
                 SET download_count = download_count + 1
                 WHERE track_id = $1
                 "#, self.track.id
-            ).execute(pool.read().await.get_inner()).await?;
+            ).execute(&mut *tx).await?;
 
             self.download_count += 1;
         }
+
+        tx.commit().await.expect("cannot commit tx");
 
         Ok(self)
     }

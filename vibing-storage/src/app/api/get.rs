@@ -14,20 +14,67 @@ use tokio_util::io::ReaderStream;
 
 use crate::database::{
     core::pool::VibingPool,
-    entities::track::{FullTrackPatch, TrackFilter, TrackFull},
+    entities::track::{TrackFullPatch, TrackFilter, TrackFull},
 };
 
 pub async fn get_root() -> String {
     "hello viber!".to_string()
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq)]
+pub struct ResponseTrack {
+    pub id: i32,
+    pub title: Option<String>,
+    pub author: Option<String>,
+    pub genre: Option<String>,
+    pub duration: Option<i32>,
+    pub vibes: Vec<(String, String)>,
+    pub average_rating: f64,
+    pub download_count: i32,
+}
+
+impl Into<ResponseTrack> for TrackFull {
+    fn into(self) -> ResponseTrack {
+        let mut vibes = Vec::new();
+        for vibe in self.vibes {
+            vibes.push(
+                (vibe.group_name, vibe.name)
+            );
+        }
+
+        let average_rating = if self.vote_count != 0 {
+            self.total_rating as f64 / self.vote_count as f64
+        } else {
+            0.00
+        };
+
+        ResponseTrack {
+            id: self.track.id,
+            title: self.track.title,
+            author: self.track.author,
+            genre: self.track.genre,
+            duration: self.track.duration,
+            vibes,
+            average_rating,
+            download_count: self.download_count
+        }
+    }
+}
+
 pub async fn get_tracks_by_filter(
     State(pool): State<Arc<RwLock<VibingPool>>>,
     Query(filter): Query<TrackFilter>
-) -> (StatusCode, Json<Vec<TrackFull>>) {
+) -> (StatusCode, Json<Vec<ResponseTrack>>) {
+    let tracks = TrackFull::get_by_filter(filter, pool).await
+        .expect("cannot get filtered tracks");
+    let mut response_tracks = Vec::new();
+    for track in tracks {
+        response_tracks.push(track.into());
+    }
+
     (
         StatusCode::OK,
-        Json(TrackFull::get_by_filter(filter, pool).await.expect("cannot get filtered tracks"))
+        Json(response_tracks)
     )
 }
 
@@ -71,7 +118,7 @@ pub async fn download_track_by_id(
     };
 
     tokio::spawn(async move {
-        let patch = FullTrackPatch {
+        let patch = TrackFullPatch {
             new_download: true,
             ..Default::default()
         };
