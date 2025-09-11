@@ -104,16 +104,6 @@ impl Track {
         ).fetch_all(pool.read().await.get_inner()).await?)
     }
 
-    pub async fn get_all_with_limit(limit: i64, pool: Arc<RwLock<VibingPool>>) -> Result<Vec<Track>> {
-        Ok(sqlx::query_as!(Track,
-            r#"
-            SELECT track_id AS id, path, title, author, genre, duration
-            FROM tracks
-            LIMIT $1
-            "#, limit
-        ).fetch_all(pool.read().await.get_inner()).await?)
-    }
-
     pub async fn get_by_filter(filter: TrackFilter, pool: Arc<RwLock<VibingPool>>) -> Result<Vec<Track>> {
         let mut query_builder: QueryBuilder<sqlx::Postgres> = QueryBuilder::new(
             "
@@ -341,44 +331,6 @@ impl TrackFull {
 
     pub async fn get_all(pool: Arc<RwLock<VibingPool>>) -> Result<Vec<TrackFull>> {
         let tracks = Track::get_all(pool.clone()).await?;
-
-        let mut full_tracks = Vec::new();
-
-        for track in tracks {
-            let track_id = track.id;
-            let vibes = sqlx::query_as!(Vibe,
-                "
-                SELECT vb.vibe_id AS id, vb.name AS name, vg.name AS group_name
-                FROM tracks_with_vibes AS twv
-                JOIN tracks AS tr ON twv.track = tr.track_id
-                JOIN vibes AS vb ON twv.vibe = vb.vibe_id
-                JOIN vibe_groups AS vg ON vb.vibe_group = vg.vibe_group_id
-                WHERE twv.track = $1
-                ", track_id
-            ).fetch_all(pool.read().await.get_inner()).await?;
-
-            let track_stat = sqlx::query!(
-                "
-                SELECT vote_count, total_rating, download_count
-                FROM tracks
-                WHERE track_id = $1
-                ", track_id
-            ).fetch_one(pool.read().await.get_inner()).await?;
-
-            let vote_count = track_stat.vote_count;
-            let total_rating = track_stat.total_rating;
-            let download_count = track_stat.download_count;
-
-            full_tracks.push(
-                TrackFull { track, vibes, vote_count, total_rating, download_count }
-            );
-        }
-
-        Ok(full_tracks)
-    }
-
-    pub async fn get_all_with_limit(limit: i64, pool: Arc<RwLock<VibingPool>>) -> Result<Vec<TrackFull>> {
-        let tracks = Track::get_all_with_limit(limit, pool.clone()).await?;
 
         let mut full_tracks = Vec::new();
 
