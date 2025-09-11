@@ -166,7 +166,7 @@ impl Track {
 
         if let Some(order_by) = filter.order_by {
             // Whitelist columns to prevent SQL injection in ORDER BY
-            let valid_columns = ["title", "author", "genre", "duration", "vote_count", "average_rating", "download_count"];
+            let valid_columns = ["average_rating", "download_count"];
             if valid_columns.contains(&order_by.as_str()) {
                 query_builder.push(format!(" ORDER BY t.{} DESC", order_by));
             }

@@ -19,7 +19,7 @@ async fn main() {
 #[cfg(feature = "get_sample")]
 {
     vibing_storage::app::fetch::SampleRoot::fetch()
-        .sync(&pool).await
+        .sync(pool.clone()).await
         .expect("cannot sync sample");
 }
 
@@ -29,7 +29,7 @@ async fn main() {
     let app = Router::new()
         .route("/", get(get_root))
         .route("/tracks", get(get_tracks_by_filter))
-        .route("download", get(download_track_by_id))
+        .route("/download", get(download_track_by_id))
         .with_state(pool);
 
     serve(listener, app.into_make_service()).await
