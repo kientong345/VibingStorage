@@ -2,11 +2,12 @@ use std::sync::Arc;
 
 use axum::{
     body::Body,
-    extract::{Path, Query, State},
+    extract::{Query, State},
     http::{header, StatusCode},
     response::IntoResponse,
     Json,
 };
+use serde::{Deserialize, Serialize};
 use tokio::fs::File;
 use tokio::sync::RwLock;
 use tokio_util::io::ReaderStream;
@@ -45,12 +46,17 @@ fn path_to_mime_type(path: &str) -> &'static str {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
+pub struct DownloadTrack {
+    id: i32,
+}
+
 pub async fn download_track_by_id(
     State(pool): State<Arc<RwLock<VibingPool>>>,
-    Path(id): Path<i32>,
+    Query(target_track): Query<DownloadTrack>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let track_full = TrackFull::get_by_id(id, pool.clone()).await.map_err(|_|
-        (StatusCode::NOT_FOUND, format!("Track with id {} not found in database", id))
+    let track_full = TrackFull::get_by_id(target_track.id, pool.clone()).await.map_err(|_|
+        (StatusCode::NOT_FOUND, format!("Track with id {} not found in database", target_track.id))
     )?;
 
     let file_path_str = track_full.track.path.clone();
@@ -70,7 +76,7 @@ pub async fn download_track_by_id(
             ..Default::default()
         };
         if let Err(e) = track_full.apply_patch(patch, pool).await {
-            eprintln!("Failed to increment download count for track {}: {:?}", id, e);
+            eprintln!("Failed to increment download count for track {}: {:?}", target_track.id, e);
         }
     });
 
