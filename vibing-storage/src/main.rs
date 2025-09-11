@@ -1,6 +1,8 @@
+use std::sync::Arc;
+
 use axum::{routing::get, serve, Router};
-use tokio::net::TcpListener;
-use vibing_storage::{app::apis::get::get_root, config::Configuration, database::{core::pool::VibingPool}};
+use tokio::{net::TcpListener, sync::RwLock};
+use vibing_storage::{app::apis::get::{download_track_by_id, get_root, get_tracks_by_filter}, config::Configuration, database::core::pool::VibingPool};
 
 
 #[tokio::main]
@@ -11,6 +13,8 @@ async fn main() {
     let pool = VibingPool::init().await;
 #[cfg(not(feature = "init_db"))]
     let pool = VibingPool::get().await;
+
+    let pool = Arc::new(RwLock::new(pool));
 
 #[cfg(feature = "get_sample")]
 {
@@ -23,7 +27,10 @@ async fn main() {
     let listener = TcpListener::bind(address).await
         .expect("cannot bind address");
     let app = Router::new()
-        .route("/", get(get_root));
+        .route("/", get(get_root))
+        .route("/tracks", get(get_tracks_by_filter))
+        .route("download", get(download_track_by_id))
+        .with_state(pool);
 
     serve(listener, app.into_make_service()).await
         .expect("cannot serving app");

@@ -1,9 +1,9 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 
 pub type Result<T> = std::result::Result<T, DatabaseError>;
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum DatabaseError {
     QueryTimeout,
     DatabaseConnectionError,

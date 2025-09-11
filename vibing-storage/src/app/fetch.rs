@@ -1,22 +1,23 @@
-use std::fs;
+use std::{fs, sync::Arc};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use tokio::sync::RwLock;
 
 use crate::{app::error::Result, config::Configuration, database::{core::pool::VibingPool, entities::track::{sync_sample, SampleTrack, TrackMetadata}}};
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
 struct SampleVibe {
     group: String,
     vibe: String,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
 struct SampleTrackWithVibes {
     path: String,
     vibes: Vec<SampleVibe>,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct SampleRoot {
     tracks_with_vibes: Vec<SampleTrackWithVibes>
 }
@@ -45,7 +46,7 @@ impl SampleRoot {
         sample
     }
 
-    pub async fn sync(&self, pool: &VibingPool) -> Result<()> {
+    pub async fn sync(&self, pool: Arc<RwLock<VibingPool>>) -> Result<()> {
         let mut sample_tracks: Vec<SampleTrack> = Vec::new();
         for track in &self.tracks_with_vibes {
             let metadata = fetch_metadata_from(&track.path)

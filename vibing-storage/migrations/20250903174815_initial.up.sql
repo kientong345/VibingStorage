@@ -7,7 +7,10 @@ CREATE TABLE tracks (
     title TEXT NULL,
     author TEXT NULL,
     genre TEXT NULL,
-    duration INT NULL
+    duration INT NULL,
+    vote_count INT NOT NULL DEFAULT 0,
+    total_rating BIGINT NOT NULL DEFAULT 0,
+    download_count INT NOT NULL DEFAULT 0
 );
 
 CREATE TABLE vibe_groups (
