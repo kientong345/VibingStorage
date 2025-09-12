@@ -20,6 +20,7 @@ pub async fn get_root() -> String {
 #[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq)]
 pub struct ResponseTrack {
     pub id: i32,
+    pub path: String,
     pub title: Option<String>,
     pub author: Option<String>,
     pub genre: Option<String>,
@@ -46,6 +47,7 @@ impl Into<ResponseTrack> for TrackFull {
 
         ResponseTrack {
             id: self.track.id,
+            path: self.track.path,
             title: self.track.title,
             author: self.track.author,
             genre: self.track.genre,

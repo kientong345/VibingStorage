@@ -55,7 +55,7 @@ interface NavbarProps {
 const Navbar = ({
   logo = {
     url: 'https://www.shadcnblocks.com',
-    src: 'https://deifkwefumgah.cloudfront.net/shadcnblocks/block/logos/shadcnblockscom-icon.svg',
+    src: '/music_icon.png',
     alt: 'logo',
     title: 'Vibing Storage',
   },

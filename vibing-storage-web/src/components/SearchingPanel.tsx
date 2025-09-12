@@ -50,7 +50,7 @@ const SearchingPanel = ({
   },
   sortPanel = {
     title: 'sort by',
-    sortMethods: ['most heared', 'most liked']
+    sortMethods: ['most download', 'rating']
   },
   filterPanel = {
     title: 'filter',
