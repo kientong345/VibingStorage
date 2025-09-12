@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use axum::{routing::get, serve, Router};
+use axum::{routing::{get, put}, serve, Router};
 use tokio::{net::TcpListener, sync::RwLock};
-use vibing_storage::{app::api::get::{get_download_path_by_id, get_root, get_tracks_by_filter}, config::Configuration, database::core::pool::VibingPool};
+use vibing_storage::{app::api::{delete::delete_track, get::{get_download_path_by_id, get_root, get_tracks_by_filter}, post::upload_track, put::store_vote}, config::Configuration, database::core::pool::VibingPool};
 
 
 #[tokio::main]
@@ -28,7 +28,12 @@ async fn main() {
         .expect("cannot bind address");
     let app = Router::new()
         .route("/", get(get_root))
-        .route("/tracks", get(get_tracks_by_filter))
+        .route("/tracks",
+            get(get_tracks_by_filter)
+            .post(upload_track)
+            .delete(delete_track)
+        )
+        .route("/tracks/vote", put(store_vote))
         .route("/download", get(get_download_path_by_id))
         .with_state(pool);
 
