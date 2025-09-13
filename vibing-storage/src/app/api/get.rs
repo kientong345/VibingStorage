@@ -17,6 +17,12 @@ pub async fn get_root() -> String {
     "hello viber!".to_string()
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
+pub struct ResponseVibe {
+    pub group_name: String,
+    pub name: String,
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq)]
 pub struct ResponseTrack {
     pub id: i32,
@@ -25,7 +31,7 @@ pub struct ResponseTrack {
     pub author: Option<String>,
     pub genre: Option<String>,
     pub duration: Option<i32>,
-    pub vibes: Vec<(String, String)>,
+    pub vibes: Vec<ResponseVibe>,
     pub average_rating: f64,
     pub download_count: i32,
 }
@@ -35,7 +41,7 @@ impl Into<ResponseTrack> for TrackFull {
         let mut vibes = Vec::new();
         for vibe in self.vibes {
             vibes.push(
-                (vibe.group_name, vibe.name)
+                ResponseVibe { group_name: vibe.group_name, name: vibe.name }
             );
         }
 

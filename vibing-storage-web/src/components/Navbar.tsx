@@ -72,7 +72,7 @@ const Navbar = ({
   },
 }: NavbarProps) => {
   return (
-    <section className="py-4">
+    <section className="py-4 bg-lime-200">
       <div className="mx-auto max-w-7xl px-4">
         {/* Desktop Menu */}
         <nav className="hidden justify-between lg:flex">

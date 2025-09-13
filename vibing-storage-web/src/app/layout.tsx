@@ -24,10 +24,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} antialiased`}>
+      <body className={`${inter.variable} antialiased flex flex-col min-h-screen`}>
         <Header />
-        {children}
-        {/* <Footer /> */}
+        <main 
+          className="flex-grow bg-[url('/autumn_forest.jpg')] bg-cover bg-center bg-fixed"
+        >
+          <div className="h-full">
+            {children}
+          </div>
+        </main>
+        <Footer />
       </body>
     </html>
   )

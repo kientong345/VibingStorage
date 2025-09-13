@@ -15,7 +15,7 @@ export interface Track {
   image: string;
   genre: string;
   duration: number;
-  vibes: string[];
+  vibes: { group_name: string, name: string }[];
   average_rating: number;
   download_count: number;
 }
@@ -91,7 +91,7 @@ export default function TrackCard({ track }: TrackCardProps) {
             <p className="text-sm"><span className="font-semibold">Duration:</span> {track.duration}s</p>
             <div className="mt-2 flex flex-wrap gap-2">
                 {track.vibes.map((tag) => (
-                    <Badge key={tag} variant="secondary" className="capitalize">{tag}</Badge>
+                    <Badge key={tag.name} variant="secondary" className="capitalize">{tag.name}</Badge>
                 ))}
             </div>
         </CardContent>

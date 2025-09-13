@@ -60,14 +60,18 @@ const SearchingPanel = ({
     }
   }
 
+  const handleSearch = () => {
+    const query: SearchQuery = {
+      pattern: searchPattern,
+      order_by: sortMethod,
+      vibes: selectedTags,
+    }
+    onSearch(query)
+  }
+
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
-      const query: SearchQuery = {
-        pattern: searchPattern,
-        order_by: sortMethod,
-        vibes: selectedTags,
-      }
-      onSearch(query)
+      handleSearch()
     }
   }
 
@@ -140,6 +144,7 @@ const SearchingPanel = ({
             </Accordion>
           </DialogContent>
         </Dialog>
+        <Button onClick={handleSearch}>Search</Button>
       </div>
     </div>
   )
