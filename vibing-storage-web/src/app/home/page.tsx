@@ -1,98 +1,73 @@
-import SearchingPanel from '@/components/SearchingPanel'
-import TrackCard from '@/components/TrackCard'
+'use client'
 
-const tracks = [
-  {
-    id: 1,
-    url: "https://example.com/music/1",
-    title: 'MorningRain',
-    author: 'Terraria',
-    genre: 'house',
-    duration: 100,
-    tags: ['morning', 'rainy'],
-    image: '',
-    average_rating: 0.00,
-    download_count: 0
-  },
-  {
-    id: 2,
-    url: "https://example.com/music/2",
-    title: 'Rain',
-    author: 'Terraria',
-    genre: 'house',
-    duration: 100,
-    tags: ['rainy'],
-    image: '',
-    average_rating: 0.00,
-    download_count: 0
-  },
-  {
-    id: 3,
-    url: "https://example.com/music/3",
-    title: 'TownNight',
-    author: 'Terraria',
-    genre: 'house',
-    duration: 100,
-    tags: ['evening', 'night'],
-    image: '',
-    average_rating: 0.00,
-    download_count: 0
-  },
-  {
-    id: 4,
-    url: "https://example.com/music/4",
-    title: 'Ocean',
-    author: 'Terraria',
-    genre: 'house',
-    duration: 100,
-    tags: ['summer'],
-    image: '',
-    average_rating: 0.00,
-    download_count: 0
-  },
-  {
-    id: 5,
-    url: "https://example.com/music/5",
-    title: 'Summertime',
-    author: 'cinemon',
-    genre: 'house',
-    duration: 100,
-    tags: ['sunny', 'summer'],
-    image: '',
-    average_rating: 0.00,
-    download_count: 0
-  },
-  {
-    id: 6,
-    url: "https://example.com/music/6",
-    title: 'GloriousMorning',
-    author: 'Waterflame',
-    genre: 'house',
-    duration: 100,
-    tags: ['morning'],
-    image: '',
-    average_rating: 0.00,
-    download_count: 0
-  },
-];
+import { useState, useEffect } from 'react'
+import SearchingPanel, { SearchQuery } from '@/components/SearchingPanel'
+import TrackCard, { Track } from '@/components/TrackCard'
+
+const TrackList = ({ tracks }: { tracks: Track[] }) => {
+  return (
+    <section className="w-full flex flex-col items-center">
+      <p className="mb-4 text-muted-foreground md:text-base lg:max-w-2xl lg:text-lg">
+        {tracks.length} results matched
+      </p>
+      <div className="w-full max-w-2xl grid grid-cols-1 gap-4">
+        {tracks.map((track) => (
+          <TrackCard key={track.id} track={{
+            ...track,
+            id: track.id,
+            duration: track.duration,
+          }}/>
+        ))}
+      </div>
+    </section>
+  )
+}
 
 const HomeBody = () => {
+  const [tracks, setTracks] = useState<Track[]>([]);
+
+  useEffect(() => {
+    const fetchInitialTracks = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/tracks');
+        const data = await response.json();
+        setTracks(data);
+      } catch (error) {
+        console.error("Failed to fetch initial tracks:", error);
+      }
+    };
+
+    fetchInitialTracks();
+  }, []);
+
+  const handleSearch = async (query: SearchQuery) => {
+    console.log('Search query:', query)
+    const searchParams = new URLSearchParams();
+    if (query.pattern) {
+      searchParams.append('pattern', query.pattern);
+    }
+    if (query.order_by) {
+      searchParams.append('order_by', query.order_by);
+    }
+    if (query.vibes) {
+      query.vibes.forEach(vibe => searchParams.append('vibes', vibe));
+    }
+
+    try {
+      const response = await fetch(`http://localhost:3001/tracks?${searchParams.toString()}`);
+      const data = await response.json();
+      setTracks(data);
+      console.log('res:', tracks)
+    } catch (error) {
+      console.error("Failed to fetch search results:", error);
+    }
+  }
+
   return (
-    <section className="py-32">
-      <div className="container mx-auto flex flex-col items-center gap-10 lg:px-16">
-        <SearchingPanel />
-        <p className="mb-8 text-muted-foreground md:text-base lg:max-w-2xl lg:text-lg">
-          there are {tracks.length} tracks that matched your filter
-        </p>
-        <div className="w-full max-w-2xl grid grid-cols-1 gap-4">
-          {tracks.map((track) => (
-            <TrackCard key={track.id} track={{
-              ...track,
-              id: track.id.toString(),
-              duration: track.duration.toString(),
-            }}/>
-          ))}
-        </div>
+    <section className="py-16">
+      <div className="container mx-auto flex flex-col items-center gap-8 lg:px-16">
+        <SearchingPanel onSearch={handleSearch} />
+        <TrackList tracks={tracks}/>
       </div>
     </section>
   )

@@ -1,21 +1,21 @@
 'use client'
 
 import { useState } from 'react'
-import { Music4, Download, ChevronDown, ChevronUp, Star } from 'lucide-react'
+import { Play, Pause, Download, ChevronDown, ChevronUp, Star } from 'lucide-react'
 
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 
 // Define the Track interface based on the structure in your home page
-interface Track {
-  id: string;
+export interface Track {
+  id: number;
   url: string;
   title: string;
   author: string;
   image: string;
   genre: string;
-  duration: string;
-  tags: string[];
+  duration: number;
+  vibes: string[];
   average_rating: number;
   download_count: number;
 }
@@ -26,13 +26,24 @@ interface TrackCardProps {
 
 export default function TrackCard({ track }: TrackCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(false)
 
   return (
-    <Card className="w-full max-w-2xl p-4 transition-all duration-300">
+    <Card className="w-full p-4 transition-all duration-300">
       <div className="flex items-center justify-between gap-4">
         {/* Left Icon */}
         <div className="flex-shrink-0">
-          <Music4 className="size-6 text-muted-foreground" />
+          <button 
+            className="p-2 rounded-full hover:bg-muted" 
+            aria-label={isPlaying ? "Pause track" : "Play track"}
+            onClick={() => setIsPlaying(!isPlaying)}
+          >
+            {isPlaying ? (
+              <Pause className="size-7 text-muted-foreground" />
+            ) : (
+              <Play className="size-7 text-muted-foreground" />
+            )}
+          </button>
         </div>
 
         {/* Middle Content */}
@@ -79,18 +90,10 @@ export default function TrackCard({ track }: TrackCardProps) {
             <p className="text-sm"><span className="font-semibold">Genre:</span> {track.genre}</p>
             <p className="text-sm"><span className="font-semibold">Duration:</span> {track.duration}s</p>
             <div className="mt-2 flex flex-wrap gap-2">
-                {track.tags.map((tag) => (
+                {track.vibes.map((tag) => (
                     <Badge key={tag} variant="secondary" className="capitalize">{tag}</Badge>
                 ))}
             </div>
-            <a
-                href={track.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-500 hover:underline text-sm mt-2 inline-block"
-            >
-                Visit source
-            </a>
         </CardContent>
       )}
     </Card>
