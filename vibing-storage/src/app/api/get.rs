@@ -45,8 +45,8 @@ impl Into<ResponseTrack> for TrackFull {
             );
         }
 
-        let average_rating = if self.vote_count != 0 {
-            self.total_rating as f64 / self.vote_count as f64
+        let average_rating = if self.track.vote_count != 0 {
+            self.track.total_rating as f64 / self.track.vote_count as f64
         } else {
             0.00
         };
@@ -60,7 +60,7 @@ impl Into<ResponseTrack> for TrackFull {
             duration: self.track.duration,
             vibes,
             average_rating,
-            download_count: self.download_count
+            download_count: self.track.download_count
         }
     }
 }
