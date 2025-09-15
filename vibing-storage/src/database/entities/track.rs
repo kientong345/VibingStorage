@@ -213,7 +213,7 @@ impl TrackFull {
         }
 
         if let Some(order_by) = filter.order_by {
-            let valid_columns = ["rating", "most_download"];
+            let valid_columns = ["rating", "most download"];
             if order_by == valid_columns[0] {
                 query_builder.push(" ORDER BY (CASE WHEN t.vote_count > 0 THEN t.total_rating::FLOAT / t.vote_count ELSE 0 END) DESC");
             } else if order_by == valid_columns[1] {

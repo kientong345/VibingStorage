@@ -22,11 +22,16 @@ export interface Track {
 
 interface TrackCardProps {
   track: Track;
+  isPlaying: boolean;
+  ellapsedTime: number;
+  onPlayPause: (id: number, isPlaying: boolean, ellapsedTime: number) => void;
+  onDownload: (id: number, url: string) => void;
 }
 
-export default function TrackCard({ track }: TrackCardProps) {
+export default function TrackCard(
+  {track, isPlaying, ellapsedTime, onPlayPause, onDownload }: TrackCardProps
+) {
   const [isExpanded, setIsExpanded] = useState(false)
-  const [isPlaying, setIsPlaying] = useState(false)
 
   return (
     <Card className="w-full p-4 transition-all duration-300">
@@ -36,7 +41,7 @@ export default function TrackCard({ track }: TrackCardProps) {
           <button 
             className="p-2 rounded-full hover:bg-muted" 
             aria-label={isPlaying ? "Pause track" : "Play track"}
-            onClick={() => setIsPlaying(!isPlaying)}
+            onClick={() => onPlayPause(track.id, isPlaying, ellapsedTime)}
           >
             {isPlaying ? (
               <Pause className="size-7 text-muted-foreground" />
@@ -69,16 +74,13 @@ export default function TrackCard({ track }: TrackCardProps) {
 
           {/* Download Section */}
           <div className="flex flex-col items-center gap-1">
-            <a
-              href={track.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              download
+            <button
               className="p-2 rounded-full hover:bg-muted"
               aria-label="Download track"
+              onClick={() => onDownload(track.id, track.url)}
             >
               <Download className="size-6" />
-            </a>
+            </button>
             <span className="text-xs font-mono text-muted-foreground">{track.download_count}</span>
           </div>
         </div>

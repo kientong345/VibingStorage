@@ -5,6 +5,21 @@ import SearchingPanel, { SearchQuery } from '@/components/SearchingPanel'
 import TrackCard, { Track } from '@/components/TrackCard'
 
 const TrackList = ({ tracks }: { tracks: Track[] }) => {
+  const [playingInfo, setPlayingInfo] = useState<{ id: number, time: number } | null>(null);
+
+  const handlePlayPause = (id: number, isPlaying: boolean, ellapsedTime: number) => {
+    if (isPlaying) {
+      setPlayingInfo(null);
+    } else {
+      setPlayingInfo({ id: id, time: 0 });
+    }
+    // impl later
+  }
+
+  const handleDownload = (id: number, url: string) => {
+    // impl later
+  }
+
   return (
     <section className="w-full flex flex-col items-center">
       <p className="mb-4 text-muted-foreground md:text-base lg:max-w-2xl lg:text-lg">
@@ -12,11 +27,14 @@ const TrackList = ({ tracks }: { tracks: Track[] }) => {
       </p>
       <div className="w-full max-w-2xl grid grid-cols-1 gap-4">
         {tracks.map((track) => (
-          <TrackCard key={track.id} track={{
-            ...track,
-            id: track.id,
-            duration: track.duration,
-          }}/>
+          <TrackCard
+            key={track.id}
+            track={track}
+            isPlaying={playingInfo?.id === track.id}
+            ellapsedTime={playingInfo?.id === track.id ? playingInfo.time : 0}
+            onPlayPause={handlePlayPause}
+            onDownload={handleDownload}
+          />
         ))}
       </div>
     </section>
@@ -57,7 +75,6 @@ const HomeBody = () => {
       const response = await fetch(`http://localhost:3001/tracks?${searchParams.toString()}`);
       const data = await response.json();
       setTracks(data);
-      console.log('res:', tracks)
     } catch (error) {
       console.error("Failed to fetch search results:", error);
     }
