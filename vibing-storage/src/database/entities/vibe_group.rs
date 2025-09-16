@@ -1,9 +1,11 @@
 use std::sync::Arc;
-
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
-
-use crate::database::{core::pool::VibingPool, entities::vibe::Vibe, error::Result};
+use crate::database::{
+    core::pool::VibingPool,
+    entities::vibe::Vibe,
+    error::Result
+};
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
 pub struct VibeGroup {

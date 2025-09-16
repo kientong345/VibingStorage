@@ -1,9 +1,14 @@
 use std::{fs, sync::Arc};
-
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
-
-use crate::{app::error::Result, config::Configuration, database::{core::pool::VibingPool, entities::track::{sync_sample, SampleTrack, TrackMetadata}}};
+use crate::{
+    app::error::Result,
+    config::Configuration,
+    database::{
+        core::pool::VibingPool,
+        entities::track::{sync_sample, SampleTrack, TrackMetadata}
+    }
+};
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
 struct SampleVibe {

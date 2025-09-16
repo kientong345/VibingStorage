@@ -1,17 +1,26 @@
 use std::sync::Arc;
-
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{
+    extract::State,
+    http::StatusCode, Json
+};
 use tokio::sync::RwLock;
+use crate::{
+    app::{
+        fetch::fetch_metadata_from
+    },
+    database::{
+        core::pool::VibingPool,
+        entities::track::{TrackFull, TrackMetadata}
+    }
+};
 
-use crate::{app::fetch::fetch_metadata_from, database::{core::pool::VibingPool, entities::track::{TrackFull, TrackMetadata}}};
-
-pub async fn upload_track(
+pub async fn handle_upload_request(
     State(pool): State<Arc<RwLock<VibingPool>>>,
     Json(mut metadata): Json<TrackMetadata>
-) -> StatusCode {
+) -> Result<StatusCode, StatusCode> {
     let default_metadata = match fetch_metadata_from(&metadata.path) {
         Ok(metadata) => metadata,
-        Err(_) => { return StatusCode::INTERNAL_SERVER_ERROR; }
+        Err(_) => { return Err(StatusCode::NOT_FOUND); }
     };
 
     if metadata.title.is_none() && default_metadata.title.is_some() {
@@ -31,7 +40,7 @@ pub async fn upload_track(
     }
 
     match TrackFull::create_from(metadata, pool).await {
-        Ok(_) => StatusCode::CREATED,
-        Err(_) => StatusCode::BAD_REQUEST
+        Ok(_) => Ok(StatusCode::CREATED),
+        Err(_) => Err(StatusCode::BAD_REQUEST)
     }
 }

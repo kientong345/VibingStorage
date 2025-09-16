@@ -8,8 +8,9 @@ sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "postgres", "mig
 axum = { version = "0.8.4", features = ["macros"] }
 tower-http = { version = "0.6.6", features = ["cors"] }
 tokio = { version = "1.0.0", features = ["full"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+tokio-util = { version = "0.7.16", features = ["io"] }
+serde = { version = "1.0.225", features = ["derive"] }
+serde_json = "1.0.145"
 dotenvy = "0.15"
 audiotags = "0.5.0"
 

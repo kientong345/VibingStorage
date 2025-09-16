@@ -1,11 +1,11 @@
 use std::sync::Arc;
-
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use tokio::sync::RwLock;
-
-use crate::database::{core::pool::VibingPool, error::Result};
-
+use crate::database::{
+    core::pool::VibingPool,
+    error::Result
+};
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq, FromRow)]
 pub struct Vibe {

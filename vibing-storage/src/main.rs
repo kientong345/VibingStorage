@@ -1,9 +1,24 @@
 use std::sync::Arc;
-
-use axum::{http, routing::{get, put}, serve, Router};
-use tokio::{net::TcpListener, sync::RwLock};
+use axum::{
+    http,
+    routing::{get, post, put},
+    serve,
+    Router
+};
+use tokio::{
+    net::TcpListener,
+    sync::RwLock
+};
 use tower_http::cors::{Any, CorsLayer};
-use vibing_storage::{app::api::{delete::delete_track, get::{get_download_path_by_id, get_root, get_tracks_by_filter}, post::upload_track, put::store_vote}, config::Configuration, database::core::pool::VibingPool};
+use vibing_storage::{
+    app::api::{
+        delete::delete_track,
+        get::{get_root, get_tracks_by_filter, handle_download_request, handle_stream_request},
+        post::handle_upload_request,
+        put::store_vote
+    },
+    config::Configuration, database::core::pool::VibingPool
+};
 
 #[tokio::main]
 async fn main() {
@@ -36,14 +51,16 @@ async fn main() {
         .route("/", get(get_root))
         .route("/tracks",
             get(get_tracks_by_filter)
-            .post(upload_track)
             .delete(delete_track)
         )
         .route("/tracks/vote", put(store_vote))
-        .route("/download", get(get_download_path_by_id))
+        .route("/tracks/download", get(handle_download_request))
+        .route("/tracks/upload", post(handle_upload_request))
+        .route("/tracks/stream", get(handle_stream_request))
         .with_state(pool)
         .layer(cors);
 
-    serve(listener, app.into_make_service()).await
+    serve(listener, app.into_make_service())
+        .await
         .expect("cannot serving app");
 }

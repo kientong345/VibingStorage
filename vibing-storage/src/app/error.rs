@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
-
+use tokio::io;
 use crate::database::error::DatabaseError;
-
 
 pub type Result<T> = std::result::Result<T, AppError>;
 
@@ -9,12 +8,12 @@ pub type Result<T> = std::result::Result<T, AppError>;
 pub enum AppError {
     AudioTagError(String),
     DatabaseError(String),
+    IoError(String),
 }
 
 impl From<audiotags::Error> for AppError {
     fn from(error: audiotags::Error) -> Self {
-        // LOG_DATABASE_ERROR
-        println!("{:?}", error);
+        // LOG_AUDIO_ERROR
 
         match error {
             audiotags::Error::ReadError { source } => AppError::AudioTagError(source.to_string()),
@@ -28,5 +27,13 @@ impl From<DatabaseError> for AppError {
         // LOG_DATABASE_ERROR
 
         AppError::DatabaseError(String::from(""))
+    }
+}
+
+impl From<io::Error> for AppError {
+    fn from(_error: io::Error) -> Self {
+        // LOG_IO_ERROR
+
+        AppError::IoError(String::from(""))
     }
 }

@@ -1,6 +1,15 @@
-use sqlx::{pool::PoolConnection, postgres::PgPoolOptions, Pool, Postgres, Transaction};
+use sqlx::{
+    pool::PoolConnection,
+    postgres::PgPoolOptions,
+    Pool,
+    Postgres,
+    Transaction
+};
 
-use crate::{config, database::error::Result};
+use crate::{
+    config,
+    database::error::Result
+};
 
 pub struct VibingPool {
     connection_pool: Pool<Postgres>

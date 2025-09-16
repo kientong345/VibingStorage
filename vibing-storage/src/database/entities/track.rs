@@ -1,10 +1,11 @@
 use std::{collections::HashMap, sync::Arc};
-
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, QueryBuilder};
 use tokio::sync::RwLock;
-
-use crate::database::{core::pool::VibingPool, entities::vibe::Vibe, error::Result};
+use crate::database::{
+    core::pool::VibingPool,
+    entities::vibe::Vibe, error::Result
+};
 
 pub type GroupName = String;
 pub type VibeName = String;
