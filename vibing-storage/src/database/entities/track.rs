@@ -77,6 +77,8 @@ impl TrackFull {
     }
 
     pub async fn get_by_id(id: i32, pool: Arc<RwLock<VibingPool>>) -> Result<TrackFull> {
+        let pool_guard = pool.read().await;
+
         let track = sqlx::query_as!(Track,
             r#"
             SELECT
@@ -85,7 +87,7 @@ impl TrackFull {
             FROM tracks
             WHERE track_id = $1
             "#, id
-        ).fetch_one(pool.read().await.get_inner()).await?;
+        ).fetch_one(pool_guard.get_inner()).await?;
 
         let vibes = sqlx::query_as!(Vibe,
             r#"
@@ -95,12 +97,14 @@ impl TrackFull {
             JOIN vibe_groups AS vg ON vb.vibe_group = vg.vibe_group_id
             WHERE twv.track = $1
             "#, id
-        ).fetch_all(pool.read().await.get_inner()).await?;
+        ).fetch_all(pool_guard.get_inner()).await?;
 
         Ok( TrackFull { track, vibes } )
     }
 
     pub async fn get_by_title(title: &str, pool: Arc<RwLock<VibingPool>>) -> Result<TrackFull> {
+        let pool_guard = pool.read().await;
+
         let track = sqlx::query_as!(Track,
             r#"
             SELECT
@@ -109,7 +113,7 @@ impl TrackFull {
             FROM tracks
             WHERE title = $1
             "#, title
-        ).fetch_one(pool.read().await.get_inner()).await?;
+        ).fetch_one(pool_guard.get_inner()).await?;
 
         let vibes = sqlx::query_as!(Vibe,
             r#"
@@ -119,13 +123,14 @@ impl TrackFull {
             JOIN vibe_groups AS vg ON vb.vibe_group = vg.vibe_group_id
             WHERE twv.track = $1
             "#, track.id
-        ).fetch_all(pool.read().await.get_inner()).await?;
+        ).fetch_all(pool_guard.get_inner()).await?;
 
         Ok( TrackFull { track, vibes } )
     }
 
     pub async fn get_all(pool: Arc<RwLock<VibingPool>>) -> Result<Vec<TrackFull>> {
         let pool_guard = pool.read().await;
+
         let tracks: Vec<Track> = sqlx::query_as!(Track,
             r#"
             SELECT
@@ -139,11 +144,14 @@ impl TrackFull {
             return Ok(Vec::new());
         }
 
-        let track_ids: Vec<i32> = tracks.iter().map(|t| t.id).collect();
+        let track_ids: Vec<i32> = tracks
+            .iter()
+            .map(|track| track.id)
+            .collect();
 
-        let vibe_rows = sqlx::query!(
+        let vibes = sqlx::query_as!(Vibe,
             r#"
-            SELECT twv.track, vb.vibe_id, vb.name, vg.name AS group_name
+            SELECT vb.vibe_id AS id, vb.name AS name, vg.name AS group_name
             FROM tracks_with_vibes AS twv
             JOIN vibes AS vb ON twv.vibe = vb.vibe_id
             JOIN vibe_groups AS vg ON vb.vibe_group = vg.vibe_group_id
@@ -155,19 +163,16 @@ impl TrackFull {
         .await?;
 
         let mut vibes_map: HashMap<i32, Vec<Vibe>> = HashMap::new();
-        for row in vibe_rows {
-            let vibe = Vibe {
-                id: row.vibe_id,
-                name: row.name,
-                group_name: row.group_name,
-            };
-            vibes_map.entry(row.track).or_default().push(vibe);
+        for vibe in vibes {
+            vibes_map.entry(vibe.id).or_default().push(vibe);
         }
 
-        let full_tracks = tracks.into_iter().map(|track| {
-            let vibes = vibes_map.remove(&track.id).unwrap_or_default();
-            TrackFull { track, vibes }
-        }).collect();
+        let full_tracks = tracks
+            .into_iter()
+            .map(|track| {
+                let vibes = vibes_map.remove(&track.id).unwrap_or_default();
+                TrackFull { track, vibes }
+            }).collect();
 
         Ok(full_tracks)
     }
@@ -407,6 +412,7 @@ impl TrackFull {
 
     pub async fn remove(self, pool: Arc<RwLock<VibingPool>>) -> Result<()> {
         let pool_guard = pool.read().await;
+
         let mut tx = pool_guard.transaction().await?;
         
         let id = self.track.id;
@@ -449,6 +455,7 @@ pub struct SampleTrack {
 
 pub async fn sync_sample(sample_tracks: Vec<SampleTrack>, pool: Arc<RwLock<VibingPool>>) -> Vec<TrackFull> {
     let pool_guard = pool.read().await;
+
     let mut tx = pool_guard.transaction().await
         .expect("cannot get tx");
 
