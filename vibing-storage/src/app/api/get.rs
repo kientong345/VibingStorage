@@ -117,7 +117,6 @@ pub async fn handle_download_request(
 #[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
 pub struct MusicStreamQuery {
     pub track_id: i32,
-    pub toggle_state: bool,
     pub start_at: Option<i32>,
 }
 
@@ -130,9 +129,35 @@ pub struct ResponseMusicStream {
 
 pub async fn handle_stream_request(
     State(pool): State<Arc<RwLock<VibingPool>>>,
-    Query(target_track): Query<ResponseMusicStream>,
-) -> Result<(StatusCode, String), StatusCode> {
-    todo!()
+    Query(target_track): Query<MusicStreamQuery>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let track_full = match TrackFull::get_by_id(target_track.track_id, pool.clone()).await {
+        Ok(track_full) => track_full,
+        Err(_) => { return Err(StatusCode::NOT_FOUND); }
+    };
+
+    let path = &track_full.track.path;
+
+    let downloadable_file = match DownloadableFile::get_from(&path).await {
+        Ok(file) => file,
+        Err(_) => { return Err(StatusCode::INTERNAL_SERVER_ERROR); }
+    };
+
+    let body = Body::from_stream(
+        ReaderStream::new(downloadable_file.file)
+    );
+
+    let response = match Response::builder()
+            .status(200)
+            .header(header::CONTENT_TYPE, &downloadable_file.content_type)
+            .header(header::CACHE_CONTROL, "no-cache")
+            .body(body)
+    {
+        Ok(response) => response,
+        Err(_) => { return Err(StatusCode::INTERNAL_SERVER_ERROR); }
+    };
+
+    Ok(response)
 }
 
 

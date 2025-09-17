@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Play, Pause, Download, ChevronDown, ChevronUp, Star } from 'lucide-react'
 
 import { Card, CardContent } from '@/components/ui/card'
@@ -25,16 +25,29 @@ interface TrackCardProps {
   isPlaying: boolean;
   ellapsedTime: number;
   onPlayPause: (id: number, isPlaying: boolean, ellapsedTime: number) => void;
-  onDownload: (id: number, url: string) => void;
+  onDownload: (id: number) => void;
 }
 
 export default function TrackCard(
   {track, isPlaying, ellapsedTime, onPlayPause, onDownload }: TrackCardProps
 ) {
   const [isExpanded, setIsExpanded] = useState(false)
+  const audioRef = useRef<HTMLAudioElement>(null)
+
+  useEffect(() => {
+    if (isPlaying) {
+      audioRef.current?.play()
+    } else {
+      audioRef.current?.pause()
+    }
+  }, [isPlaying])
+
+  const AUDIO_API = `http://localhost:3001/tracks/stream?track_id=${track.id.toString()}`;
+  const DOWNLOAD_API = `http://localhost:3001/tracks/download?track_id=${track.id.toString()}`;
 
   return (
     <Card className="w-full p-4 transition-all duration-300">
+      <audio ref={audioRef} src={AUDIO_API} />
       <div className="flex items-center justify-between gap-4">
         {/* Left Icon */}
         <div className="flex-shrink-0">
@@ -74,13 +87,17 @@ export default function TrackCard(
 
           {/* Download Section */}
           <div className="flex flex-col items-center gap-1">
-            <button
+            <a
+              href={DOWNLOAD_API}
+              target="_blank"
+              rel="noopener noreferrer"
+              download
               className="p-2 rounded-full hover:bg-muted"
               aria-label="Download track"
-              onClick={() => onDownload(track.id, track.url)}
+              onClick={() => onDownload(track.id)}
             >
               <Download className="size-6" />
-            </button>
+            </a>
             <span className="text-xs font-mono text-muted-foreground">{track.download_count}</span>
           </div>
         </div>

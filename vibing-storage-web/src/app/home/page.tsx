@@ -16,7 +16,7 @@ const TrackList = ({ tracks }: { tracks: Track[] }) => {
     // impl later
   }
 
-  const handleDownload = (id: number, url: string) => {
+  const handleDownload = (id: number) => {
     // impl later
   }
 
