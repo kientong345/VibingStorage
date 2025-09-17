@@ -8,7 +8,8 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 use tokio_util::io::ReaderStream;
 use crate::{
-    app::services::download::DownloadableFile, database::{
+    app::services::download::DownloadableFile,
+    database::{
         core::pool::VibingPool,
         entities::track::{TrackFilter, TrackFull, TrackFullPatch},
     }

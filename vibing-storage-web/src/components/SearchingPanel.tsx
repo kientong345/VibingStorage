@@ -20,6 +20,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+// import FilterPanel from './FilterPanel'
 
 export interface SearchQuery {
   pattern?: string,
@@ -28,10 +29,43 @@ export interface SearchQuery {
   order_by?: string,
 }
 
+interface FilterPanelProps {
+  filterTags: { tag_group: string, tags: string[] }[];
+  selectedTags: string[];
+  onTagChange: (tag: string, checked: boolean) => void;
+}
+
+export function FilterPanel({ filterTags, selectedTags, onTagChange }: FilterPanelProps) {
+  return (
+    <Accordion type="multiple" className="w-full py-4">
+      {filterTags.map((group) => (
+        <AccordionItem key={group.tag_group} value={group.tag_group}>
+          <AccordionTrigger className="capitalize">{group.tag_group}</AccordionTrigger>
+          <AccordionContent>
+            <div className="grid grid-cols-2 gap-4 pt-2">
+              {group.tags.map((tag) => (
+                <label key={tag} className="flex items-center space-x-2">
+                  <input 
+                    type="checkbox" 
+                    className="form-checkbox" 
+                    checked={selectedTags.includes(tag)}
+                    onChange={(e) => onTagChange(tag, e.target.checked)}
+                  />
+                  <span className="text-sm font-medium capitalize">{tag}</span>
+                </label>
+              ))}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      ))}
+    </Accordion>
+  );
+}
+
 interface SearchingPanelProps {
-  searchTitle?: string,
-  sortMethods?: string[],
-  filterTags?: { tag_group: string, tags: string[] }[],
+  searchTitle: string,
+  sortMethods: string[],
+  filterTags: { tag_group: string, tags: string[] }[],
   onSearch: (query: SearchQuery) => void,
 }
 
@@ -120,28 +154,11 @@ const SearchingPanel = ({
                 Select tags to filter the tracks.
               </DialogDescription>
             </DialogHeader>
-            <Accordion type="multiple" className="w-full py-4">
-              {filterTags.map((group) => (
-                <AccordionItem key={group.tag_group} value={group.tag_group}>
-                  <AccordionTrigger className="capitalize">{group.tag_group}</AccordionTrigger>
-                  <AccordionContent>
-                    <div className="grid grid-cols-2 gap-4 pt-2">
-                      {group.tags.map((tag) => (
-                        <label key={tag} className="flex items-center space-x-2">
-                          <input 
-                            type="checkbox" 
-                            className="form-checkbox" 
-                            checked={selectedTags.includes(tag)}
-                            onChange={(e) => handleTagChange(tag, e.target.checked)}
-                          />
-                          <span className="text-sm font-medium capitalize">{tag}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
+            <FilterPanel
+              filterTags={filterTags}
+              selectedTags={selectedTags}
+              onTagChange={(tag, checked) => handleTagChange(tag, checked)}
+            />
           </DialogContent>
         </Dialog>
         <Button onClick={handleSearch}>Search</Button>
