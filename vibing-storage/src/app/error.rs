@@ -1,6 +1,6 @@
+use crate::database::error::DatabaseError;
 use serde::{Deserialize, Serialize};
 use tokio::io;
-use crate::database::error::DatabaseError;
 
 pub type Result<T> = std::result::Result<T, AppError>;
 

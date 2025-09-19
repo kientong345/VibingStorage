@@ -1,4 +1,4 @@
 pub mod api;
-pub mod services;
-pub mod fetch;
 pub mod error;
+pub mod fetch;
+pub mod services;

@@ -47,7 +47,8 @@ const HomeBody = () => {
   useEffect(() => {
     const fetchInitialTracks = async () => {
       try {
-        const response = await fetch('http://localhost:3001/tracks');
+        const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+        const response = await fetch(`${BACKEND_URL}/tracks`);
         const data = await response.json();
         setTracks(data);
       } catch (error) {
@@ -72,7 +73,8 @@ const HomeBody = () => {
     }
 
     try {
-      const response = await fetch(`http://localhost:3001/tracks?${searchParams.toString()}`);
+      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+      const response = await fetch(`${BACKEND_URL}/tracks?${searchParams.toString()}`);
       const data = await response.json();
       setTracks(data);
     } catch (error) {

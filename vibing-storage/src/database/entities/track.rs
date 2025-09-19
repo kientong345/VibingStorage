@@ -1,11 +1,8 @@
-use std::{collections::HashMap, sync::Arc};
+use crate::database::{core::pool::VibingPool, entities::vibe::Vibe, error::Result};
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, QueryBuilder};
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
-use crate::database::{
-    core::pool::VibingPool,
-    entities::vibe::Vibe, error::Result
-};
 
 pub type GroupName = String;
 pub type VibeName = String;
@@ -61,95 +58,125 @@ pub struct TrackFilter {
 }
 
 impl TrackFull {
-    pub async fn create_from(metadata: TrackMetadata, pool: Arc<RwLock<VibingPool>>) -> Result<TrackFull> {
-        let track = sqlx::query_as!(Track,
+    pub async fn create_from(
+        metadata: TrackMetadata,
+        pool: Arc<RwLock<VibingPool>>,
+    ) -> Result<TrackFull> {
+        let track = sqlx::query_as!(
+            Track,
             r#"
             INSERT INTO tracks (path, title, author, genre, duration)
             VALUES ($1, $2, $3, $4, $5)
             RETURNING 
                 track_id AS id, path, title, author, genre,
                 duration, vote_count, total_rating, download_count
-            "#, metadata.path, metadata.title, metadata.author,
-                metadata.genre, metadata.duration
-        ).fetch_one(pool.read().await.get_inner()).await?;
+            "#,
+            metadata.path,
+            metadata.title,
+            metadata.author,
+            metadata.genre,
+            metadata.duration
+        )
+        .fetch_one(pool.read().await.get_inner())
+        .await?;
 
-        Ok( TrackFull { track, vibes: Vec::new() } )
+        Ok(TrackFull {
+            track,
+            vibes: Vec::new(),
+        })
     }
 
     pub async fn get_by_id(id: i32, pool: Arc<RwLock<VibingPool>>) -> Result<TrackFull> {
         let pool_guard = pool.read().await;
 
-        let track = sqlx::query_as!(Track,
+        let track = sqlx::query_as!(
+            Track,
             r#"
             SELECT
                 track_id AS id, path, title, author, genre,
                 duration, vote_count, total_rating, download_count
             FROM tracks
             WHERE track_id = $1
-            "#, id
-        ).fetch_one(pool_guard.get_inner()).await?;
+            "#,
+            id
+        )
+        .fetch_one(pool_guard.get_inner())
+        .await?;
 
-        let vibes = sqlx::query_as!(Vibe,
+        let vibes = sqlx::query_as!(
+            Vibe,
             r#"
             SELECT vb.vibe_id AS id, vb.name AS name, vg.name AS group_name
             FROM tracks_with_vibes AS twv
             JOIN vibes AS vb ON twv.vibe = vb.vibe_id
             JOIN vibe_groups AS vg ON vb.vibe_group = vg.vibe_group_id
             WHERE twv.track = $1
-            "#, id
-        ).fetch_all(pool_guard.get_inner()).await?;
+            "#,
+            id
+        )
+        .fetch_all(pool_guard.get_inner())
+        .await?;
 
-        Ok( TrackFull { track, vibes } )
+        Ok(TrackFull { track, vibes })
     }
 
     pub async fn get_by_title(title: &str, pool: Arc<RwLock<VibingPool>>) -> Result<TrackFull> {
         let pool_guard = pool.read().await;
 
-        let track = sqlx::query_as!(Track,
+        let track = sqlx::query_as!(
+            Track,
             r#"
             SELECT
                 track_id AS id, path, title, author, genre,
                 duration, vote_count, total_rating, download_count
             FROM tracks
             WHERE title = $1
-            "#, title
-        ).fetch_one(pool_guard.get_inner()).await?;
+            "#,
+            title
+        )
+        .fetch_one(pool_guard.get_inner())
+        .await?;
 
-        let vibes = sqlx::query_as!(Vibe,
+        let vibes = sqlx::query_as!(
+            Vibe,
             r#"
             SELECT vb.vibe_id AS id, vb.name AS name, vg.name AS group_name
             FROM tracks_with_vibes AS twv
             JOIN vibes AS vb ON twv.vibe = vb.vibe_id
             JOIN vibe_groups AS vg ON vb.vibe_group = vg.vibe_group_id
             WHERE twv.track = $1
-            "#, track.id
-        ).fetch_all(pool_guard.get_inner()).await?;
+            "#,
+            track.id
+        )
+        .fetch_all(pool_guard.get_inner())
+        .await?;
 
-        Ok( TrackFull { track, vibes } )
+        Ok(TrackFull { track, vibes })
     }
 
     pub async fn get_all(pool: Arc<RwLock<VibingPool>>) -> Result<Vec<TrackFull>> {
         let pool_guard = pool.read().await;
 
-        let tracks: Vec<Track> = sqlx::query_as!(Track,
+        let tracks: Vec<Track> = sqlx::query_as!(
+            Track,
             r#"
             SELECT
                 track_id AS id, path, title, author, genre,
                 duration, vote_count, total_rating, download_count
             FROM tracks
             "#
-        ).fetch_all(pool_guard.get_inner()).await?;
+        )
+        .fetch_all(pool_guard.get_inner())
+        .await?;
 
         if tracks.is_empty() {
             return Ok(Vec::new());
         }
 
-        let track_ids: Vec<i32> = tracks
-            .iter()
-            .map(|track| track.id)
-            .collect();
+        let track_ids: Vec<i32> = tracks.iter().map(|track| track.id).collect();
 
-        let vibes = sqlx::query_as!(Vibe,
+        let vibes = sqlx::query_as!(
+            Vibe,
             r#"
             SELECT vb.vibe_id AS id, vb.name AS name, vg.name AS group_name
             FROM tracks_with_vibes AS twv
@@ -172,12 +199,16 @@ impl TrackFull {
             .map(|track| {
                 let vibes = vibes_map.remove(&track.id).unwrap_or_default();
                 TrackFull { track, vibes }
-            }).collect();
+            })
+            .collect();
 
         Ok(full_tracks)
     }
 
-    pub async fn get_by_filter(filter: TrackFilter, pool: Arc<RwLock<VibingPool>>) -> Result<Vec<TrackFull>> {
+    pub async fn get_by_filter(
+        filter: TrackFilter,
+        pool: Arc<RwLock<VibingPool>>,
+    ) -> Result<Vec<TrackFull>> {
         let mut query_builder: QueryBuilder<sqlx::Postgres> = QueryBuilder::new(
             r#"
             SELECT DISTINCT
@@ -214,7 +245,10 @@ impl TrackFull {
 
         if let Some(vibes) = &filter.vibes {
             if !vibes.is_empty() {
-                query_builder.push(" AND vb.name = ANY(").push_bind(vibes).push(")");
+                query_builder
+                    .push(" AND vb.name = ANY(")
+                    .push_bind(vibes)
+                    .push(")");
             }
         }
 
@@ -268,55 +302,75 @@ impl TrackFull {
             vibes_map.entry(row.track).or_default().push(vibe);
         }
 
-        let full_tracks = tracks.into_iter().map(|track| {
-            let vibes = vibes_map.remove(&track.id).unwrap_or_default();
-            TrackFull { track, vibes }
-        }).collect();
+        let full_tracks = tracks
+            .into_iter()
+            .map(|track| {
+                let vibes = vibes_map.remove(&track.id).unwrap_or_default();
+                TrackFull { track, vibes }
+            })
+            .collect();
 
         Ok(full_tracks)
     }
 
-    pub async fn apply_patch(mut self, patch: TrackFullPatch, pool: Arc<RwLock<VibingPool>>) -> Result<TrackFull> {
+    pub async fn apply_patch(
+        mut self,
+        patch: TrackFullPatch,
+        pool: Arc<RwLock<VibingPool>>,
+    ) -> Result<TrackFull> {
         let pool_guard = pool.read().await;
 
         // --- 1. Handle track metadata updates (path, title, author, etc.) ---
-        let mut update_query: QueryBuilder<sqlx::Postgres> = QueryBuilder::new("UPDATE tracks SET ");
+        let mut update_query: QueryBuilder<sqlx::Postgres> =
+            QueryBuilder::new("UPDATE tracks SET ");
         let mut separated = update_query.separated(", ");
         let mut has_updates = false;
 
         if let Some(path) = patch.path {
-            separated.push("path = ").push_bind_unseparated(path.clone());
+            separated
+                .push("path = ")
+                .push_bind_unseparated(path.clone());
             self.track.path = path;
             has_updates = true;
         }
 
         if let Some(title) = patch.title {
-            separated.push("title = ").push_bind_unseparated(title.clone());
+            separated
+                .push("title = ")
+                .push_bind_unseparated(title.clone());
             self.track.title = Some(title);
             has_updates = true;
         }
 
         if let Some(author) = patch.author {
-            separated.push("author = ").push_bind_unseparated(author.clone());
+            separated
+                .push("author = ")
+                .push_bind_unseparated(author.clone());
             self.track.author = Some(author);
             has_updates = true;
         }
 
         if let Some(genre) = patch.genre {
-            separated.push("genre = ").push_bind_unseparated(genre.clone());
+            separated
+                .push("genre = ")
+                .push_bind_unseparated(genre.clone());
             self.track.genre = Some(genre);
             has_updates = true;
         }
 
         if let Some(duration) = patch.duration {
-            separated.push("duration = ").push_bind_unseparated(duration);
+            separated
+                .push("duration = ")
+                .push_bind_unseparated(duration);
             self.track.duration = Some(duration);
             has_updates = true;
         }
 
         if let Some(new_vote) = patch.new_vote {
             separated.push("vote_count = vote_count + 1");
-            separated.push("total_rating = total_rating + ").push_bind_unseparated(new_vote as i64);
+            separated
+                .push("total_rating = total_rating + ")
+                .push_bind_unseparated(new_vote as i64);
             self.track.vote_count += 1;
             self.track.total_rating += new_vote as i64;
             has_updates = true;
@@ -330,16 +384,17 @@ impl TrackFull {
 
         // Only execute update if there were changes to track metadata
         if has_updates {
-            update_query.push(" WHERE track_id = ").push_bind(self.track.id);
+            update_query
+                .push(" WHERE track_id = ")
+                .push_bind(self.track.id);
             update_query.build().execute(pool_guard.get_inner()).await?;
         }
 
         // --- 2. Handle vibe removal ---
         if let Some(remove_vibes) = patch.remove_vibes {
             if !remove_vibes.is_empty() {
-                let mut query_builder = QueryBuilder::new(
-                    "DELETE FROM tracks_with_vibes WHERE track = "
-                );
+                let mut query_builder =
+                    QueryBuilder::new("DELETE FROM tracks_with_vibes WHERE track = ");
                 query_builder.push_bind(self.track.id);
                 query_builder.push(" AND vibe IN (SELECT vibe_id FROM vibes vb JOIN vibe_groups vg ON vb.vibe_group = vg.vibe_group_id WHERE (");
 
@@ -352,12 +407,17 @@ impl TrackFull {
                     or_separated.push_unseparated(")");
                 }
                 query_builder.push("))");
-                
-                query_builder.build().execute(pool_guard.get_inner()).await?;
+
+                query_builder
+                    .build()
+                    .execute(pool_guard.get_inner())
+                    .await?;
 
                 // Update local state
-                let remove_set: std::collections::HashSet<(String, String)> = remove_vibes.into_iter().collect();
-                self.vibes.retain(|v| !remove_set.contains(&(v.group_name.clone(), v.name.clone())));
+                let remove_set: std::collections::HashSet<(String, String)> =
+                    remove_vibes.into_iter().collect();
+                self.vibes
+                    .retain(|v| !remove_set.contains(&(v.group_name.clone(), v.name.clone())));
             }
         }
 
@@ -365,12 +425,14 @@ impl TrackFull {
         if let Some(add_vibes) = patch.add_vibes {
             if !add_vibes.is_empty() {
                 // Fetch the full Vibe objects for the ones we need to add.
-                let mut query = QueryBuilder::new(r#"
+                let mut query = QueryBuilder::new(
+                    r#"
                     SELECT vb.vibe_id as id, vb.name, vg.name as group_name
                     FROM vibes vb
                     JOIN vibe_groups vg ON vb.vibe_group = vg.vibe_group_id
                     WHERE 
-                "#);
+                "#,
+                );
                 query.push("(");
                 let mut or_separated = query.separated(" OR ");
                 for (group, name) in &add_vibes {
@@ -382,12 +444,15 @@ impl TrackFull {
                 }
                 query.push(")");
 
-                let vibes_to_add = query.build_query_as::<Vibe>()
-                    .fetch_all(pool_guard.get_inner()).await?;
+                let vibes_to_add = query
+                    .build_query_as::<Vibe>()
+                    .fetch_all(pool_guard.get_inner())
+                    .await?;
 
                 if !vibes_to_add.is_empty() {
                     // Build a single INSERT statement for the junction table
-                    let mut insert_query = QueryBuilder::new("INSERT INTO tracks_with_vibes (track, vibe) ");
+                    let mut insert_query =
+                        QueryBuilder::new("INSERT INTO tracks_with_vibes (track, vibe) ");
                     insert_query.push_values(vibes_to_add.iter(), |mut b, vibe| {
                         b.push_bind(self.track.id);
                         b.push_bind(vibe.id);
@@ -397,7 +462,8 @@ impl TrackFull {
                     insert_query.build().execute(pool_guard.get_inner()).await?;
 
                     // Update local state, avoiding duplicates
-                    let existing_vibe_ids: std::collections::HashSet<i32> = self.vibes.iter().map(|v| v.id).collect();
+                    let existing_vibe_ids: std::collections::HashSet<i32> =
+                        self.vibes.iter().map(|v| v.id).collect();
                     for vibe in vibes_to_add {
                         if !existing_vibe_ids.contains(&vibe.id) {
                             self.vibes.push(vibe);
@@ -414,21 +480,27 @@ impl TrackFull {
         let pool_guard = pool.read().await;
 
         let mut tx = pool_guard.transaction().await?;
-        
+
         let id = self.track.id;
         sqlx::query!(
             "
             DELETE FROM tracks
             WHERE track_id = $1
-            ", id
-        ).execute(&mut *tx).await?;
+            ",
+            id
+        )
+        .execute(&mut *tx)
+        .await?;
 
         sqlx::query!(
             "
             DELETE FROM tracks_with_vibes
             WHERE track = $1
-            ", id
-        ).execute(&mut *tx).await?;
+            ",
+            id
+        )
+        .execute(&mut *tx)
+        .await?;
 
         tx.commit().await?;
 
@@ -441,7 +513,9 @@ impl TrackFull {
             SELECT COUNT(*) AS tracks_count
             FROM tracks
             "
-        ).fetch_one(pool.read().await.get_inner()).await?
+        )
+        .fetch_one(pool.read().await.get_inner())
+        .await?
         .tracks_count
         .unwrap_or(-1))
     }
@@ -453,11 +527,13 @@ pub struct SampleTrack {
     pub vibes: Vec<(String, String)>,
 }
 
-pub async fn sync_sample(sample_tracks: Vec<SampleTrack>, pool: Arc<RwLock<VibingPool>>) -> Vec<TrackFull> {
+pub async fn sync_sample(
+    sample_tracks: Vec<SampleTrack>,
+    pool: Arc<RwLock<VibingPool>>,
+) -> Vec<TrackFull> {
     let pool_guard = pool.read().await;
 
-    let mut tx = pool_guard.transaction().await
-        .expect("cannot get tx");
+    let mut tx = pool_guard.transaction().await.expect("cannot get tx");
 
     let mut tracks: Vec<TrackFull> = Vec::new();
 
@@ -467,8 +543,15 @@ pub async fn sync_sample(sample_tracks: Vec<SampleTrack>, pool: Arc<RwLock<Vibin
             INSERT INTO tracks (path, title, author, genre, duration)
             VALUES ($1, $2, $3, $4, $5)
             RETURNING track_id
-            "#, track.metadata.path, track.metadata.title, track.metadata.author, track.metadata.genre, track.metadata.duration
-        ).fetch_one(&mut *tx).await
+            "#,
+            track.metadata.path,
+            track.metadata.title,
+            track.metadata.author,
+            track.metadata.genre,
+            track.metadata.duration
+        )
+        .fetch_one(&mut *tx)
+        .await
         .expect("cannot create track")
         .track_id;
 
@@ -483,7 +566,7 @@ pub async fn sync_sample(sample_tracks: Vec<SampleTrack>, pool: Arc<RwLock<Vibin
             total_rating: 0,
             download_count: 0,
         };
-        
+
         let mut new_vibes: Vec<Vibe> = Vec::new();
 
         for vibe in track.vibes {
@@ -495,16 +578,27 @@ pub async fn sync_sample(sample_tracks: Vec<SampleTrack>, pool: Arc<RwLock<Vibin
                     FROM vibes
                     WHERE name = $2
                 ))
-                ", id, vibe.1
-            ).execute(&mut *tx).await
+                ",
+                id,
+                vibe.1
+            )
+            .execute(&mut *tx)
+            .await
             .expect("cannot add vibe");
 
             // NOTE: This is incorrect as the vibe id is not returned.
             // Setting to 0 to allow compilation.
-            new_vibes.push(Vibe { id: 0, name: vibe.1, group_name: vibe.0 });
+            new_vibes.push(Vibe {
+                id: 0,
+                name: vibe.1,
+                group_name: vibe.0,
+            });
         }
 
-        tracks.push(TrackFull { track: new_track, vibes: new_vibes });
+        tracks.push(TrackFull {
+            track: new_track,
+            vibes: new_vibes,
+        });
     }
 
     tx.commit().await.expect("cannot commit tx");

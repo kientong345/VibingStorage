@@ -1,6 +1,6 @@
+use crate::app::error::Result;
 use std::path::Path;
 use tokio::fs::File;
-use crate::app::error::Result;
 
 #[derive(Debug)]
 pub struct DownloadableFile {

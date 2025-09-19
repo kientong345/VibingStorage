@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-
 pub type Result<T> = std::result::Result<T, DatabaseError>;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -15,8 +14,12 @@ impl From<sqlx::Error> for DatabaseError {
         // LOG_DATABASE_ERROR
 
         match error {
-            sqlx::Error::Database(err) if err.code().as_deref() == Some("57014") => DatabaseError::QueryTimeout,
-            sqlx::Error::PoolClosed | sqlx::Error::PoolTimedOut => DatabaseError::DatabaseConnectionError,
+            sqlx::Error::Database(err) if err.code().as_deref() == Some("57014") => {
+                DatabaseError::QueryTimeout
+            }
+            sqlx::Error::PoolClosed | sqlx::Error::PoolTimedOut => {
+                DatabaseError::DatabaseConnectionError
+            }
             _ => DatabaseError::DatabaseError,
         }
     }

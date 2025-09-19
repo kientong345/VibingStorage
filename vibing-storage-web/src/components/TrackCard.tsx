@@ -42,8 +42,10 @@ export default function TrackCard(
     }
   }, [isPlaying])
 
-  const AUDIO_API = `http://localhost:3001/tracks/stream?track_id=${track.id.toString()}`;
-  const DOWNLOAD_API = `http://localhost:3001/tracks/download?track_id=${track.id.toString()}`;
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+
+  const AUDIO_API = `${BACKEND_URL}/tracks/stream?track_id=${track.id.toString()}`;
+  const DOWNLOAD_API = `${BACKEND_URL}/tracks/download?track_id=${track.id.toString()}`;
 
   return (
     <Card className="w-full p-4 transition-all duration-300">

@@ -1,19 +1,21 @@
-use std::sync::Arc;
-use axum::{
-    body::Body, extract::{Query, State},
-    http::{header, Response, StatusCode},
-    response::IntoResponse, Json
-};
-use serde::{Deserialize, Serialize};
-use tokio::sync::RwLock;
-use tokio_util::io::ReaderStream;
 use crate::{
     app::services::download::DownloadableFile,
     database::{
         core::pool::VibingPool,
         entities::track::{TrackFilter, TrackFull, TrackFullPatch},
-    }
+    },
 };
+use axum::{
+    Json,
+    body::Body,
+    extract::{Query, State},
+    http::{Response, StatusCode, header},
+    response::IntoResponse,
+};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use tokio_util::io::ReaderStream;
 
 pub async fn get_root() -> String {
     "hello viber!".to_string()
@@ -49,21 +51,20 @@ pub struct TrackFilterQuery {
 
 pub async fn get_tracks_by_filter(
     State(pool): State<Arc<RwLock<VibingPool>>>,
-    Query(filter): Query<TrackFilterQuery>
+    Query(filter): Query<TrackFilterQuery>,
 ) -> Result<(StatusCode, Json<Vec<ResponseTrack>>), StatusCode> {
     let tracks = match TrackFull::get_by_filter(filter.into(), pool).await {
         Ok(tracks) => tracks,
-        Err(_) => { return Err(StatusCode::BAD_REQUEST); }
+        Err(_) => {
+            return Err(StatusCode::BAD_REQUEST);
+        }
     };
     let mut response_tracks = Vec::new();
     for track in tracks {
         response_tracks.push(track.into());
     }
 
-    Ok((
-        StatusCode::OK,
-        Json(response_tracks)
-    ))
+    Ok((StatusCode::OK, Json(response_tracks)))
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
@@ -77,30 +78,35 @@ pub async fn handle_download_request(
 ) -> Result<impl IntoResponse, StatusCode> {
     let track_full = match TrackFull::get_by_id(target_track.track_id, pool.clone()).await {
         Ok(track_full) => track_full,
-        Err(_) => { return Err(StatusCode::NOT_FOUND); }
+        Err(_) => {
+            return Err(StatusCode::NOT_FOUND);
+        }
     };
 
     let path = &track_full.track.path;
 
     let downloadable_file = match DownloadableFile::get_from(&path).await {
         Ok(file) => file,
-        Err(_) => { return Err(StatusCode::INTERNAL_SERVER_ERROR); }
+        Err(_) => {
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
     };
 
-    let body = Body::from_stream(
-        ReaderStream::new(downloadable_file.file)
-    );
+    let body = Body::from_stream(ReaderStream::new(downloadable_file.file));
 
     let response = match Response::builder()
-            .status(200)
-            .header(header::CONTENT_TYPE, &downloadable_file.content_type)
-            .header(
-                header::CONTENT_DISPOSITION,
-                format!("attachment; filename=\"{}\"", downloadable_file.name),
-            ).body(body)
+        .status(200)
+        .header(header::CONTENT_TYPE, &downloadable_file.content_type)
+        .header(
+            header::CONTENT_DISPOSITION,
+            format!("attachment; filename=\"{}\"", downloadable_file.name),
+        )
+        .body(body)
     {
         Ok(response) => response,
-        Err(_) => { return Err(StatusCode::INTERNAL_SERVER_ERROR); }
+        Err(_) => {
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
     };
 
     let patch = TrackFullPatch {
@@ -134,42 +140,45 @@ pub async fn handle_stream_request(
 ) -> Result<impl IntoResponse, StatusCode> {
     let track_full = match TrackFull::get_by_id(target_track.track_id, pool.clone()).await {
         Ok(track_full) => track_full,
-        Err(_) => { return Err(StatusCode::NOT_FOUND); }
+        Err(_) => {
+            return Err(StatusCode::NOT_FOUND);
+        }
     };
 
     let path = &track_full.track.path;
 
     let downloadable_file = match DownloadableFile::get_from(&path).await {
         Ok(file) => file,
-        Err(_) => { return Err(StatusCode::INTERNAL_SERVER_ERROR); }
+        Err(_) => {
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
     };
 
-    let body = Body::from_stream(
-        ReaderStream::new(downloadable_file.file)
-    );
+    let body = Body::from_stream(ReaderStream::new(downloadable_file.file));
 
     let response = match Response::builder()
-            .status(200)
-            .header(header::CONTENT_TYPE, &downloadable_file.content_type)
-            .header(header::CACHE_CONTROL, "no-cache")
-            .body(body)
+        .status(200)
+        .header(header::CONTENT_TYPE, &downloadable_file.content_type)
+        .header(header::CACHE_CONTROL, "no-cache")
+        .body(body)
     {
         Ok(response) => response,
-        Err(_) => { return Err(StatusCode::INTERNAL_SERVER_ERROR); }
+        Err(_) => {
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
     };
 
     Ok(response)
 }
 
-
-
 impl Into<ResponseTrack> for TrackFull {
     fn into(self) -> ResponseTrack {
         let mut vibes = Vec::new();
         for vibe in self.vibes {
-            vibes.push(
-                ResponseVibe { group_name: vibe.group_name, name: vibe.name }
-            );
+            vibes.push(ResponseVibe {
+                group_name: vibe.group_name,
+                name: vibe.name,
+            });
         }
 
         let average_rating = if self.track.vote_count != 0 {
@@ -187,7 +196,7 @@ impl Into<ResponseTrack> for TrackFull {
             duration: self.track.duration,
             vibes,
             average_rating,
-            download_count: self.track.download_count
+            download_count: self.track.download_count,
         }
     }
 }

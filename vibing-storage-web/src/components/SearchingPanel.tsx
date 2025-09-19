@@ -63,9 +63,9 @@ export function FilterPanel({ filterTags, selectedTags, onTagChange }: FilterPan
 }
 
 interface SearchingPanelProps {
-  searchTitle: string,
-  sortMethods: string[],
-  filterTags: { tag_group: string, tags: string[] }[],
+  searchTitle?: string,
+  sortMethods?: string[],
+  filterTags?: { tag_group: string, tags: string[] }[],
   onSearch: (query: SearchQuery) => void,
 }
 

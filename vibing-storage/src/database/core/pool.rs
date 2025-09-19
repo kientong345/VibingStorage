@@ -1,18 +1,9 @@
-use sqlx::{
-    pool::PoolConnection,
-    postgres::PgPoolOptions,
-    Pool,
-    Postgres,
-    Transaction
-};
+use sqlx::{Pool, Postgres, Transaction, pool::PoolConnection, postgres::PgPoolOptions};
 
-use crate::{
-    config,
-    database::error::Result
-};
+use crate::{config, database::error::Result};
 
 pub struct VibingPool {
-    connection_pool: Pool<Postgres>
+    connection_pool: Pool<Postgres>,
 }
 
 // some Result type is uneccessary because failures here are fatal, which should terminate the service immediately
@@ -22,8 +13,9 @@ impl VibingPool {
         Self {
             connection_pool: PgPoolOptions::new()
                 .max_connections(20)
-                .connect(&config::database_url()).await
-                .expect("Failed to connect to vibing-storage database")
+                .connect(&config::database_url())
+                .await
+                .expect("Failed to connect to vibing-storage database"),
         }
     }
 
@@ -31,8 +23,9 @@ impl VibingPool {
         let pool = Self {
             connection_pool: PgPoolOptions::new()
                 .max_connections(20)
-                .connect(&config::database_url()).await
-                .expect("Failed to connect to vibing-storage database")
+                .connect(&config::database_url())
+                .await
+                .expect("Failed to connect to vibing-storage database"),
         };
 
         pool.run_migrations().await;
@@ -42,7 +35,8 @@ impl VibingPool {
 
     async fn run_migrations(&self) {
         sqlx::migrate!("./migrations")
-            .run(&self.connection_pool).await
+            .run(&self.connection_pool)
+            .await
             .expect("cannot migrate database");
     }
 
@@ -52,15 +46,13 @@ impl VibingPool {
 
     /// Gets a connection from the connection pool
     pub async fn connection(&self) -> Result<PoolConnection<Postgres>> {
-        let connection = self.connection_pool
-            .acquire().await?;
+        let connection = self.connection_pool.acquire().await?;
 
         Ok(connection)
     }
 
     pub async fn transaction(&self) -> Result<Transaction<'_, Postgres>> {
-        let transaction = self.connection_pool
-            .begin().await?;
+        let transaction = self.connection_pool.begin().await?;
 
         Ok(transaction)
     }
