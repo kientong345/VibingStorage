@@ -15,5 +15,5 @@ dotenvy = "0.15"
 audiotags = "0.5.0"
 
 [features]
-get_sample = []
+get_resource = []
 init_db = []

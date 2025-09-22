@@ -1,0 +1,25 @@
+version: '3.9'
+
+services:
+
+  vibing-storage:
+    container_name: vibing-storage
+    image: vibing-storage:1.0.0
+    build:
+      context: ./vibing-storage
+      dockerfile: Dockerfile
+      args:
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/vibing_storage_db
+    ports:
+      - '3001:3001'
+
+  vibing-storage-web:
+    container_name: vibing-storage-web
+    image: vibing-storage-web:1.0.0
+    build:
+      context: ./vibing-storage-web
+      dockerfile: dockerfile
+      args:
+        NEXT_PUBLIC_BACKEND_URL: 'http://localhost:3001'
+    ports:
+      - '3000:3000'

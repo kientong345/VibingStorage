@@ -2,7 +2,10 @@ use crate::{
     app::services::download::DownloadableFile,
     database::{
         core::pool::VibingPool,
-        entities::track::{TrackFilter, TrackFull, TrackFullPatch},
+        entities::{
+            Paginate,
+            track::{TrackFilter, TrackFull, TrackFullPatch, TrackPaginationParams},
+        },
     },
 };
 use axum::{
@@ -41,26 +44,28 @@ pub struct ResponseTrack {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
-pub struct TrackFilterQuery {
+pub struct PageFilterQuery {
     pub pattern: Option<String>,
     pub author: Option<String>,
     pub vibes: Option<Vec<String>>,
     pub limit: Option<i32>,
     pub order_by: Option<String>,
+    pub page: i32,
+    pub size: i32,
 }
 
-pub async fn get_tracks_by_filter(
+pub async fn get_filtered_page(
     State(pool): State<Arc<RwLock<VibingPool>>>,
-    Query(filter): Query<TrackFilterQuery>,
+    Query(filter): Query<PageFilterQuery>,
 ) -> Result<(StatusCode, Json<Vec<ResponseTrack>>), StatusCode> {
-    let tracks = match TrackFull::get_by_filter(filter.into(), pool).await {
-        Ok(tracks) => tracks,
+    let page = match TrackFull::page(&filter.into(), pool).await {
+        Ok(page) => page,
         Err(_) => {
             return Err(StatusCode::BAD_REQUEST);
         }
     };
     let mut response_tracks = Vec::new();
-    for track in tracks {
+    for track in page.items {
         response_tracks.push(track.into());
     }
 
@@ -201,14 +206,18 @@ impl Into<ResponseTrack> for TrackFull {
     }
 }
 
-impl Into<TrackFilter> for TrackFilterQuery {
-    fn into(self) -> TrackFilter {
-        TrackFilter {
-            pattern: self.pattern,
-            author: self.author,
-            vibes: self.vibes,
-            limit: self.limit,
-            order_by: self.order_by,
+impl Into<TrackPaginationParams> for PageFilterQuery {
+    fn into(self) -> TrackPaginationParams {
+        TrackPaginationParams {
+            page_num: self.page,
+            page_size: self.size,
+            filter: TrackFilter {
+                pattern: self.pattern,
+                author: self.author,
+                vibes: self.vibes,
+                limit: self.limit,
+                order_by: self.order_by,
+            },
         }
     }
 }

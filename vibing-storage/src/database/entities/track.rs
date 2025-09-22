@@ -1,4 +1,8 @@
-use crate::database::{core::pool::VibingPool, entities::vibe::Vibe, error::Result};
+use crate::database::{
+    core::pool::VibingPool,
+    entities::{Page, Paginate, vibe::Vibe},
+    error::Result,
+};
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, QueryBuilder};
 use std::{collections::HashMap, sync::Arc};
@@ -521,87 +525,174 @@ impl TrackFull {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct SampleTrack {
-    pub metadata: TrackMetadata,
-    pub vibes: Vec<(String, String)>,
+pub struct TrackPaginationParams {
+    pub page_num: i32,
+    pub page_size: i32,
+    pub filter: TrackFilter,
 }
 
-pub async fn sync_sample(
-    sample_tracks: Vec<SampleTrack>,
-    pool: Arc<RwLock<VibingPool>>,
-) -> Vec<TrackFull> {
-    let pool_guard = pool.read().await;
-
-    let mut tx = pool_guard.transaction().await.expect("cannot get tx");
-
-    let mut tracks: Vec<TrackFull> = Vec::new();
-
-    for track in sample_tracks {
-        let id = sqlx::query!(
+impl Paginate<TrackPaginationParams> for TrackFull {
+    async fn page(
+        params: &TrackPaginationParams,
+        pool: Arc<RwLock<VibingPool>>,
+    ) -> Result<Page<Self>> {
+        // --- 1. Build the base query for both counting and fetching data ---
+        let mut count_query_builder: QueryBuilder<sqlx::Postgres> =
+            QueryBuilder::new("SELECT COUNT(DISTINCT t.track_id) as count FROM tracks t");
+        let mut query_builder: QueryBuilder<sqlx::Postgres> = QueryBuilder::new(
             r#"
-            INSERT INTO tracks (path, title, author, genre, duration)
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING track_id
+            SELECT DISTINCT
+                t.track_id AS id, t.path, t.title, t.author, t.genre,
+                t.duration, t.vote_count, t.total_rating, t.download_count
+            FROM tracks t
             "#,
-            track.metadata.path,
-            track.metadata.title,
-            track.metadata.author,
-            track.metadata.genre,
-            track.metadata.duration
-        )
-        .fetch_one(&mut *tx)
-        .await
-        .expect("cannot create track")
-        .track_id;
+        );
 
-        let new_track = Track {
-            id,
-            path: track.metadata.path,
-            title: track.metadata.title,
-            author: track.metadata.author,
-            genre: track.metadata.genre,
-            duration: track.metadata.duration,
-            vote_count: 0,
-            total_rating: 0,
-            download_count: 0,
-        };
+        if let Some(vibes) = &params.filter.vibes {
+            if !vibes.is_empty() {
+                let join_sql = r#"
+                    JOIN tracks_with_vibes twv ON t.track_id = twv.track
+                    JOIN vibes vb ON twv.vibe = vb.vibe_id
+                    "#;
+                count_query_builder.push(join_sql);
+                query_builder.push(join_sql);
+            }
+        }
 
-        let mut new_vibes: Vec<Vibe> = Vec::new();
+        count_query_builder.push(" WHERE TRUE");
+        query_builder.push(" WHERE TRUE");
 
-        for vibe in track.vibes {
-            sqlx::query!(
-                "
-                INSERT INTO tracks_with_vibes (track, vibe)
-                VALUES ($1, (
-                    SELECT vibe_id
-                    FROM vibes
-                    WHERE name = $2
-                ))
-                ",
-                id,
-                vibe.1
-            )
-            .execute(&mut *tx)
-            .await
-            .expect("cannot add vibe");
+        if let Some(pattern) = &params.filter.pattern {
+            let pattern_sql = format!("%{}%", pattern);
+            count_query_builder
+                .push(" AND (t.title ILIKE ")
+                .push_bind(pattern_sql.clone())
+                .push(" OR t.author ILIKE ")
+                .push_bind(pattern_sql.clone())
+                .push(") ");
+            query_builder
+                .push(" AND (t.title ILIKE ")
+                .push_bind(pattern_sql.clone())
+                .push(" OR t.author ILIKE ")
+                .push_bind(pattern_sql)
+                .push(") ");
+        }
 
-            // NOTE: This is incorrect as the vibe id is not returned.
-            // Setting to 0 to allow compilation.
-            new_vibes.push(Vibe {
-                id: 0,
-                name: vibe.1,
-                group_name: vibe.0,
+        if let Some(author) = &params.filter.author {
+            count_query_builder
+                .push(" AND t.author = ")
+                .push_bind(author.clone());
+            query_builder
+                .push(" AND t.author = ")
+                .push_bind(author.clone());
+        }
+
+        if let Some(vibes) = &params.filter.vibes {
+            if !vibes.is_empty() {
+                count_query_builder
+                    .push(" AND vb.name = ANY(")
+                    .push_bind(vibes.clone())
+                    .push(")");
+                query_builder
+                    .push(" AND vb.name = ANY(")
+                    .push_bind(vibes.clone())
+                    .push(")");
+            }
+        }
+
+        // --- 2. Execute the COUNT query ---
+        #[derive(Debug, FromRow)]
+        struct Count {
+            count: i64,
+        }
+
+        let pool_guard = pool.read().await;
+        let total_items = count_query_builder
+            .build_query_as::<Count>()
+            .fetch_one(pool_guard.get_inner())
+            .await?
+            .count;
+
+        if total_items == 0 {
+            return Ok(Page::default());
+        }
+
+        // --- 3. Apply ordering and pagination to the main query ---
+        if let Some(order_by) = &params.filter.order_by {
+            let valid_columns = ["rating", "most download"];
+            if order_by == valid_columns[0] {
+                query_builder.push(" ORDER BY (CASE WHEN t.vote_count > 0 THEN t.total_rating::FLOAT / t.vote_count ELSE 0 END) DESC");
+            } else if order_by == valid_columns[1] {
+                query_builder.push(" ORDER BY t.download_count DESC");
+            }
+        }
+
+        let limit = params
+            .filter
+            .limit
+            .map_or(params.page_size, |l| l.min(params.page_size));
+        query_builder.push(" LIMIT ").push_bind(limit);
+
+        let offset = (params.page_num - 1) * params.page_size;
+        query_builder.push(" OFFSET ").push_bind(offset);
+
+        // --- 4. Execute the main query to get the items for the page ---
+        let tracks: Vec<Track> = query_builder
+            .build_query_as()
+            .fetch_all(pool_guard.get_inner())
+            .await?;
+
+        if tracks.is_empty() {
+            println!("empty case");
+            return Ok(Page {
+                total_items,
+                total_page: (total_items as f64 / params.page_size as f64).ceil() as i32,
+                page_num: params.page_num,
+                page_size: params.page_size,
+                ..Default::default()
             });
         }
 
-        tracks.push(TrackFull {
-            track: new_track,
-            vibes: new_vibes,
-        });
+        // --- 5. Fetch related vibes and construct the final TrackFull objects ---
+        let track_ids: Vec<i32> = tracks.iter().map(|t| t.id).collect();
+        let vibe_rows = sqlx::query!(
+            r#"
+            SELECT twv.track, vb.vibe_id, vb.name, vg.name AS group_name
+            FROM tracks_with_vibes AS twv
+            JOIN vibes AS vb ON twv.vibe = vb.vibe_id
+            JOIN vibe_groups AS vg ON vb.vibe_group = vg.vibe_group_id
+            WHERE twv.track = ANY($1)
+            "#,
+            &track_ids
+        )
+        .fetch_all(pool_guard.get_inner())
+        .await?;
+
+        let mut vibes_map: HashMap<i32, Vec<Vibe>> = HashMap::new();
+        for row in vibe_rows {
+            let vibe = Vibe {
+                id: row.vibe_id,
+                name: row.name,
+                group_name: row.group_name,
+            };
+            vibes_map.entry(row.track).or_default().push(vibe);
+        }
+
+        let full_tracks: Vec<TrackFull> = tracks
+            .into_iter()
+            .map(|track| {
+                let vibes = vibes_map.remove(&track.id).unwrap_or_default();
+                TrackFull { track, vibes }
+            })
+            .collect();
+
+        // --- 6. Construct the final Page object ---
+        Ok(Page {
+            items: full_tracks,
+            total_items,
+            total_page: (total_items as f64 / params.page_size as f64).ceil() as i32,
+            page_num: params.page_num,
+            page_size: params.page_size,
+        })
     }
-
-    tx.commit().await.expect("cannot commit tx");
-
-    tracks
 }

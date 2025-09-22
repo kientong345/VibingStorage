@@ -31,9 +31,9 @@ impl From<DatabaseError> for AppError {
 }
 
 impl From<io::Error> for AppError {
-    fn from(_error: io::Error) -> Self {
+    fn from(error: io::Error) -> Self {
         // LOG_IO_ERROR
 
-        AppError::IoError(String::from(""))
+        AppError::IoError(error.to_string())
     }
 }

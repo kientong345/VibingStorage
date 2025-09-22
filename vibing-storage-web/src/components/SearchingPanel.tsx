@@ -27,6 +27,8 @@ export interface SearchQuery {
   author?: string,
   vibes?: string[],
   order_by?: string,
+  page: number,
+  size: number,
 }
 
 interface FilterPanelProps {
@@ -66,6 +68,8 @@ interface SearchingPanelProps {
   searchTitle?: string,
   sortMethods?: string[],
   filterTags?: { tag_group: string, tags: string[] }[],
+  currentPage: number,
+  pageSize: number,
   onSearch: (query: SearchQuery) => void,
 }
 
@@ -80,6 +84,8 @@ const SearchingPanel = ({
     { tag_group: 'event', tags: ['new year', 'independent day', 'wedding'] },
     { tag_group: 'duration', tags: ['< 2 mins', '2-4 mins', '> 4 mins'] }
   ],
+  currentPage,
+  pageSize,
   onSearch,
 }: SearchingPanelProps) => {
   const [searchPattern, setSearchPattern] = useState('')
@@ -99,6 +105,8 @@ const SearchingPanel = ({
       pattern: searchPattern,
       order_by: sortMethod,
       vibes: selectedTags,
+      page: currentPage,
+      size: pageSize,
     }
     onSearch(query)
   }

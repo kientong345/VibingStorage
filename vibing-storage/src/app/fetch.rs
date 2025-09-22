@@ -1,72 +1,5 @@
-use crate::{
-    app::error::Result,
-    config::Configuration,
-    database::{
-        core::pool::VibingPool,
-        entities::track::{SampleTrack, TrackMetadata, sync_sample},
-    },
-};
-use serde::{Deserialize, Serialize};
-use std::{fs, sync::Arc};
-use tokio::sync::RwLock;
-
-#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
-struct SampleVibe {
-    group: String,
-    vibe: String,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
-struct SampleTrackWithVibes {
-    path: String,
-    vibes: Vec<SampleVibe>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct SampleRoot {
-    tracks_with_vibes: Vec<SampleTrackWithVibes>,
-}
-
-impl SampleRoot {
-    pub fn fetch() -> SampleRoot {
-        let sample_dir = Configuration::get().sample_dir.unwrap_or("".to_string());
-
-        if sample_dir.is_empty() {
-            return SampleRoot::default();
-        }
-
-        let header_path = format!("{}/vibing_header.json", sample_dir);
-
-        let header_str = fs::read_to_string(header_path).expect("cannot get sample header content");
-
-        let mut sample: SampleRoot =
-            serde_json::from_str(&header_str).expect("cannot get sample header content");
-
-        for track in &mut sample.tracks_with_vibes {
-            track.path = format!("{}/{}", sample_dir, track.path);
-        }
-
-        sample
-    }
-
-    pub async fn sync(&self, pool: Arc<RwLock<VibingPool>>) -> Result<()> {
-        let mut sample_tracks: Vec<SampleTrack> = Vec::new();
-        for track in &self.tracks_with_vibes {
-            let metadata = fetch_metadata_from(&track.path).expect("cannot get metadata");
-
-            let mut vibes = Vec::new();
-            for vibe in &track.vibes {
-                vibes.push((vibe.group.clone(), vibe.vibe.clone()));
-            }
-
-            sample_tracks.push(SampleTrack { metadata, vibes });
-        }
-
-        sync_sample(sample_tracks, pool).await;
-
-        Ok(())
-    }
-}
+use crate::{app::error::Result, database::entities::track::TrackMetadata};
+use std::fs;
 
 pub fn fetch_metadata_from(path: &str) -> Result<TrackMetadata> {
     let tag = audiotags::Tag::new().read_from_path(path)?;
@@ -84,4 +17,31 @@ pub fn fetch_metadata_from(path: &str) -> Result<TrackMetadata> {
         genre: tag.genre().map(String::from),
         duration,
     })
+}
+
+pub fn fetch_resource_from(path: &str) -> Result<Vec<TrackMetadata>> {
+    let mut metadata_vec = Vec::new();
+
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        if !path.is_file() {
+            continue;
+        }
+
+        if let Some(extension) = path.extension() {
+            if extension != "mp3" {
+                continue;
+            }
+        }
+
+        if let Some(path_str) = path.to_str() {
+            if let Ok(metadata) = fetch_metadata_from(path_str) {
+                metadata_vec.push(metadata);
+            }
+        }
+    }
+
+    Ok(metadata_vec)
 }

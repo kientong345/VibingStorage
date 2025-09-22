@@ -1,17 +1,18 @@
 use axum::{
-    Router, http,
-    routing::{get, post, put},
+    Router,
+    routing::{get, post},
     serve,
 };
 use std::sync::Arc;
 use tokio::{net::TcpListener, sync::RwLock};
 use tower_http::cors::{Any, CorsLayer};
+
 use vibing_storage::{
     app::api::{
         delete::delete_track,
-        get::{get_root, get_tracks_by_filter, handle_download_request, handle_stream_request},
+        get::{get_filtered_page, get_root, handle_download_request, handle_stream_request},
+        patch::update_track,
         post::handle_upload_request,
-        put::store_vote,
     },
     config::Configuration,
     database::core::pool::VibingPool,
@@ -28,12 +29,17 @@ async fn main() {
 
     let pool = Arc::new(RwLock::new(pool));
 
-    #[cfg(feature = "get_sample")]
+    #[cfg(feature = "get_resource")]
     {
-        vibing_storage::app::fetch::SampleRoot::fetch()
-            .sync(pool.clone())
-            .await
-            .expect("cannot sync sample");
+        use database::entities::track::TrackFull;
+        let metadata_vec =
+            vibing_storage::app::fetch::fetch_resource_from(&Configuration::get().resource_dir)
+                .expect("cannot get resource");
+        for metadata in metadata_vec {
+            TrackFull::create_from(metadata, pool.clone())
+                .await
+                .expect("cannot store resource");
+        }
     }
 
     let address = format!("127.0.0.1:{}", Configuration::get().port);
@@ -42,18 +48,21 @@ async fn main() {
         .expect("cannot bind address");
 
     let cors = CorsLayer::new()
-        .allow_origin(
-            "http://localhost:3000"
-                .parse::<http::HeaderValue>()
-                .unwrap(),
-        )
+        .allow_origin([
+            "http://localhost:3000".parse().unwrap(),
+            "https://glacial.site".parse().unwrap(),
+        ])
         .allow_methods(Any)
         .allow_headers(Any);
 
     let app = Router::new()
         .route("/", get(get_root))
-        .route("/tracks", get(get_tracks_by_filter).delete(delete_track))
-        .route("/tracks/vote", put(store_vote))
+        .route(
+            "/tracks",
+            get(get_filtered_page)
+                .patch(update_track)
+                .delete(delete_track),
+        )
         .route("/tracks/download", get(handle_download_request))
         .route("/tracks/upload", post(handle_upload_request))
         .route("/tracks/stream", get(handle_stream_request))

@@ -8,8 +8,7 @@ pub fn database_url() -> String {
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct Configuration {
-    pub resource_dir: Option<String>,
-    pub sample_dir: Option<String>,
+    pub resource_dir: String,
     pub port: u16,
 }
 

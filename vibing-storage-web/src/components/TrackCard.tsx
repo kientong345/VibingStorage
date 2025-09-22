@@ -23,24 +23,28 @@ export interface Track {
 interface TrackCardProps {
   track: Track;
   isPlaying: boolean;
+  currentVolume: number,
   ellapsedTime: number;
   onPlayPause: (id: number, isPlaying: boolean, ellapsedTime: number) => void;
   onDownload: (id: number) => void;
 }
 
 export default function TrackCard(
-  {track, isPlaying, ellapsedTime, onPlayPause, onDownload }: TrackCardProps
+  {track, isPlaying, currentVolume, ellapsedTime, onPlayPause, onDownload }: TrackCardProps
 ) {
   const [isExpanded, setIsExpanded] = useState(false)
   const audioRef = useRef<HTMLAudioElement>(null)
 
   useEffect(() => {
     if (isPlaying) {
-      audioRef.current?.play()
+      if (audioRef.current) {
+        audioRef.current.play();
+        audioRef.current.volume = currentVolume / 100;
+      }
     } else {
       audioRef.current?.pause()
     }
-  }, [isPlaying])
+  }, [isPlaying, currentVolume])
 
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
