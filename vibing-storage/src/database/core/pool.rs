@@ -2,6 +2,7 @@ use sqlx::{Pool, Postgres, Transaction, pool::PoolConnection, postgres::PgPoolOp
 
 use crate::{config, database::error::Result};
 
+#[derive(Clone)]
 pub struct VibingPool {
     connection_pool: Pool<Postgres>,
 }

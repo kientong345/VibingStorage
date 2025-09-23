@@ -6,11 +6,9 @@ use crate::{
     },
 };
 use axum::{Json, extract::State, http::StatusCode};
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 pub async fn handle_upload_request(
-    State(pool): State<Arc<RwLock<VibingPool>>>,
+    State(pool): State<VibingPool>,
     Json(mut metadata): Json<TrackMetadata>,
 ) -> Result<StatusCode, StatusCode> {
     let default_metadata = match fetch_metadata_from(&metadata.path) {
@@ -36,7 +34,7 @@ pub async fn handle_upload_request(
         metadata.duration = default_metadata.duration;
     }
 
-    match TrackFull::create_from(metadata, pool).await {
+    match TrackFull::create_from(metadata, &pool).await {
         Ok(_) => Ok(StatusCode::CREATED),
         Err(_) => Err(StatusCode::BAD_REQUEST),
     }

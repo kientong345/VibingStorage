@@ -4,8 +4,6 @@ use axum::{
     http::StatusCode,
 };
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
 pub struct DeleteTrack {
@@ -14,18 +12,18 @@ pub struct DeleteTrack {
 }
 
 pub async fn delete_track(
-    State(pool): State<Arc<RwLock<VibingPool>>>,
+    State(pool): State<VibingPool>,
     Query(target): Query<DeleteTrack>,
 ) -> Result<StatusCode, StatusCode> {
     if let Some(id) = target.id {
-        let track = match TrackFull::get_by_id(id, pool.clone()).await {
+        let track = match TrackFull::get_by_id(id, &pool).await {
             Ok(track) => track,
             Err(_) => {
                 return Err(StatusCode::NOT_FOUND);
             }
         };
 
-        match track.remove(pool).await {
+        match track.remove(&pool).await {
             Ok(_) => {
                 return Ok(StatusCode::OK);
             }
@@ -36,14 +34,14 @@ pub async fn delete_track(
     }
 
     if let Some(title) = target.title {
-        let track = match TrackFull::get_by_title(&title, pool.clone()).await {
+        let track = match TrackFull::get_by_title(&title, &pool).await {
             Ok(track) => track,
             Err(_) => {
                 return Err(StatusCode::NOT_FOUND);
             }
         };
 
-        match track.remove(pool).await {
+        match track.remove(&pool).await {
             Ok(_) => {
                 return Ok(StatusCode::OK);
             }

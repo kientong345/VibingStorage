@@ -3,8 +3,7 @@ use axum::{
     routing::{get, post},
     serve,
 };
-use std::sync::Arc;
-use tokio::{net::TcpListener, sync::RwLock};
+use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
 
 use vibing_storage::{
@@ -27,16 +26,14 @@ async fn main() {
     #[cfg(not(feature = "init_db"))]
     let pool = VibingPool::get().await;
 
-    let pool = Arc::new(RwLock::new(pool));
-
     #[cfg(feature = "get_resource")]
     {
-        use database::entities::track::TrackFull;
+        use vibing_storage::database::entities::track::TrackFull;
         let metadata_vec =
             vibing_storage::app::fetch::fetch_resource_from(&Configuration::get().resource_dir)
                 .expect("cannot get resource");
         for metadata in metadata_vec {
-            TrackFull::create_from(metadata, pool.clone())
+            TrackFull::create_from(metadata, &pool)
                 .await
                 .expect("cannot store resource");
         }

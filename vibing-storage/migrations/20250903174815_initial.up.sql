@@ -13,17 +13,12 @@ CREATE TABLE tracks (
     download_count INT NOT NULL DEFAULT 0
 );
 
-CREATE TABLE vibe_groups (
-    vibe_group_id SERIAL PRIMARY KEY,
-    name CITEXT UNIQUE NOT NULL
-);
-
 CREATE TABLE vibes (
     vibe_id SERIAL PRIMARY KEY,
     name CITEXT NOT NULL,
-    vibe_group INT NOT NULL REFERENCES vibe_groups(vibe_group_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    group_name CITEXT,
 
-    CONSTRAINT unique_vibe UNIQUE(name, vibe_group) DEFERRABLE INITIALLY IMMEDIATE
+    CONSTRAINT unique_vibe UNIQUE(name, group_name) DEFERRABLE INITIALLY IMMEDIATE
 );
 
 CREATE TABLE tracks_with_vibes (

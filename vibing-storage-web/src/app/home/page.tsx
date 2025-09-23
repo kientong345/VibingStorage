@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import SearchingPanel, { SearchQuery } from '@/components/SearchingPanel'
 import TrackCard, { Track } from '@/components/TrackCard'
 import { VolumeSlider } from '@/components/VolumeSlider'
+import PageMonitor from '@/components/PageMonitor'
 
 const PAGE_SIZE = 10;
 
@@ -105,6 +106,7 @@ const HomeBody = () => {
           pageSize={PAGE_SIZE}
           onSearch={handleSearch} />
         <TrackList tracks={tracks} currentVolume={currentVolume}/>
+        <PageMonitor currentPage={0} totalPage={10} />
         <div className="fixed bottom-25 right-4 z-50">
           <VolumeSlider volume={currentVolume} onVolumeChange={handleVolumeChange} />
         </div>

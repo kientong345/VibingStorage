@@ -15,7 +15,7 @@ export interface Track {
   image: string;
   genre: string;
   duration: number;
-  vibes: { group_name: string, name: string }[];
+  vibes: { id:number, name: string, group_name: string }[];
   average_rating: number;
   download_count: number;
 }

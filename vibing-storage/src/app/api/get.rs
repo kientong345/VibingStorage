@@ -16,8 +16,6 @@ use axum::{
     response::IntoResponse,
 };
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tokio::sync::RwLock;
 use tokio_util::io::ReaderStream;
 
 pub async fn get_root() -> String {
@@ -26,8 +24,9 @@ pub async fn get_root() -> String {
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
 pub struct ResponseVibe {
-    pub group_name: String,
+    pub id: i32,
     pub name: String,
+    pub group_name: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq)]
@@ -47,7 +46,7 @@ pub struct ResponseTrack {
 pub struct PageFilterQuery {
     pub pattern: Option<String>,
     pub author: Option<String>,
-    pub vibes: Option<Vec<String>>,
+    pub vibes: Option<Vec<i32>>,
     pub limit: Option<i32>,
     pub order_by: Option<String>,
     pub page: i32,
@@ -55,10 +54,10 @@ pub struct PageFilterQuery {
 }
 
 pub async fn get_filtered_page(
-    State(pool): State<Arc<RwLock<VibingPool>>>,
+    State(pool): State<VibingPool>,
     Query(filter): Query<PageFilterQuery>,
 ) -> Result<(StatusCode, Json<Vec<ResponseTrack>>), StatusCode> {
-    let page = match TrackFull::page(&filter.into(), pool).await {
+    let page = match TrackFull::page(&filter.into(), &pool).await {
         Ok(page) => page,
         Err(_) => {
             return Err(StatusCode::BAD_REQUEST);
@@ -78,10 +77,10 @@ pub struct DownloadQuery {
 }
 
 pub async fn handle_download_request(
-    State(pool): State<Arc<RwLock<VibingPool>>>,
+    State(pool): State<VibingPool>,
     Query(target_track): Query<DownloadQuery>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let track_full = match TrackFull::get_by_id(target_track.track_id, pool.clone()).await {
+    let track_full = match TrackFull::get_by_id(target_track.track_id, &pool).await {
         Ok(track_full) => track_full,
         Err(_) => {
             return Err(StatusCode::NOT_FOUND);
@@ -119,7 +118,7 @@ pub async fn handle_download_request(
         ..Default::default()
     };
 
-    if track_full.apply_patch(patch, pool).await.is_err() {
+    if track_full.apply_patch(patch, &pool).await.is_err() {
         return Err(StatusCode::INTERNAL_SERVER_ERROR);
     }
 
@@ -140,10 +139,10 @@ pub struct ResponseMusicStream {
 }
 
 pub async fn handle_stream_request(
-    State(pool): State<Arc<RwLock<VibingPool>>>,
+    State(pool): State<VibingPool>,
     Query(target_track): Query<MusicStreamQuery>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let track_full = match TrackFull::get_by_id(target_track.track_id, pool.clone()).await {
+    let track_full = match TrackFull::get_by_id(target_track.track_id, &pool).await {
         Ok(track_full) => track_full,
         Err(_) => {
             return Err(StatusCode::NOT_FOUND);
@@ -181,6 +180,7 @@ impl Into<ResponseTrack> for TrackFull {
         let mut vibes = Vec::new();
         for vibe in self.vibes {
             vibes.push(ResponseVibe {
+                id: vibe.id,
                 group_name: vibe.group_name,
                 name: vibe.name,
             });
